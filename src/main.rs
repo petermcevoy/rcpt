@@ -43,12 +43,32 @@ fn color(r: &Ray, world: &HitList, depth: usize) -> Vec3 {
 fn main() -> std::io::Result<()>{
 
     // Make objects
-    let lamb = Rc::new(material::Lambertian{albedo: 0.6*Vec3::ONES});
-    let s1 = Sphere{center: Vec3::new(0.0, 0.0, -1.0), radius: 0.5, material: lamb.clone()};
-    let s2 = Sphere{center: Vec3::new(0.0, -100.5, -1.0), radius: 100.0, material: lamb.clone()};
+    //let lamb = Rc::new(material::Lambertian{albedo: 0.6*Vec3::ONES});
+    let s1 = Sphere{
+        center: Vec3::new(0.0, 0.0, -1.0),
+        radius: 0.5,
+        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.8, 0.3, 0.3) } )
+    };
+    let s2 = Sphere{
+        center: Vec3::new(0.0, -100.5, -1.0),
+        radius: 100.0,
+        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.8, 0.8, 0.0) } )
+    };
+    let s3 = Sphere{
+        center: Vec3::new(1.0, 0.0, -1.0),
+        radius: 0.5,
+        material: Rc::new( material::Metal{ albedo: Vec3::new(0.8, 0.6, 0.2), fuzz: 1.0 } )
+    };
+    let s4 = Sphere{
+        center: Vec3::new(-1.0, 0.0, -1.0),
+        radius: 0.5,
+        material: Rc::new( material::Dielectric{ ref_idx: 1.5 } )
+    };
     let mut world : HitList = Vec::new();
     world.push(&s1);
     world.push(&s2);
+    world.push(&s3);
+    world.push(&s4);
 
 
     let file = File::create("./out.png")?;
