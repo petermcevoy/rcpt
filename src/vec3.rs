@@ -1,5 +1,4 @@
-use std::ops::{Add, Sub, Mul};
-use std::result::Result;
+use std::ops::{Add, Sub, Mul, Div};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Vec3 { e: [f64; 3] }
@@ -17,6 +16,13 @@ impl Vec3 {
     pub fn r(&self) -> f64 { self.e[0] }
     pub fn g(&self) -> f64 { self.e[1] }
     pub fn b(&self) -> f64 { self.e[2] }
+
+    pub fn dot(a: Vec3, b: Vec3) -> f64 {
+        return 
+            a.e[0] * b.e[0] +
+            a.e[1] * b.e[1] +
+            a.e[2] * b.e[2];
+    }
 
     fn squared_length(&self) -> f64 {
         (
@@ -52,9 +58,9 @@ impl Add for Vec3 {
     }
 }
 
-impl Sub for & Vec3 {
+impl Sub for Vec3 {
     type Output = Vec3;
-    fn sub(self, rhs: &Vec3) -> Vec3 {
+    fn sub(self, rhs: Vec3) -> Vec3 {
         Vec3 {e: {[
             self.e[0] - rhs.e[0],
             self.e[1] - rhs.e[1],
@@ -80,6 +86,17 @@ impl Mul<Vec3> for f64 {
             self*rhs.e[0],
             self*rhs.e[1],
             self*rhs.e[2]
+        ]}}
+    }
+}
+
+impl Div<f64> for Vec3 {
+    type Output = Vec3;
+    fn div(self, rhs: f64) -> Vec3 {
+        Vec3 {e: {[
+            self.e[0]/rhs,
+            self.e[1]/rhs,
+            self.e[2]/rhs
         ]}}
     }
 }

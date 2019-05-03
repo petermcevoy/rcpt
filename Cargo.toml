@@ -5,3 +5,4 @@ authors = ["Peter McEvoy <peter.michael.mcevoy@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+png = "0.14.1"
