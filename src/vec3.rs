@@ -1,14 +1,15 @@
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, AddAssign, Sub, Mul, Div, DivAssign};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Vec3 { e: [f64; 3] }
 
 impl Vec3 {
-    pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
+    pub const fn new(x: f64, y: f64, z: f64) -> Vec3 {
         Vec3{ e: {[x, y, z]} }
     }
     pub const ZEROS: Vec3 = Vec3{ e: {[0.0, 0.0, 0.0]}};
     pub const ONES: Vec3 = Vec3{ e: {[1.0, 1.0, 1.0]}};
+    pub const ERROR: Vec3 = Vec3{ e: {[1.0, 0.0, 1.0]}};
 
     pub fn x(&self) -> f64 { self.e[0] }
     pub fn y(&self) -> f64 { self.e[1] }
@@ -24,7 +25,7 @@ impl Vec3 {
             a.e[2] * b.e[2];
     }
 
-    fn squared_length(&self) -> f64 {
+    pub fn squared_length(&self) -> f64 {
         (
             self.e[0]*self.e[0] + 
             self.e[1]*self.e[1] + 
@@ -32,7 +33,7 @@ impl Vec3 {
         )
     }
 
-    fn length(&self) -> f64 {
+    pub fn length(&self) -> f64 {
         self.squared_length().sqrt()
     }
 
@@ -57,6 +58,15 @@ impl Add for Vec3 {
         ]}}
     }
 }
+impl AddAssign for Vec3 {
+    fn add_assign(&mut self, other: Vec3) {
+        *self = Vec3{e: {[
+            self.e[0] + other.e[0], 
+            self.e[1] + other.e[1], 
+            self.e[2] + other.e[2], 
+        ]}};
+    }
+}
 
 impl Sub for Vec3 {
     type Output = Vec3;
@@ -69,6 +79,16 @@ impl Sub for Vec3 {
     }
 }
 
+impl Mul for Vec3 {
+    type Output = Vec3;
+    fn mul(self, rhs: Vec3) -> Vec3 {
+        Vec3 {e: {[
+            self.e[0]*rhs.e[0],
+            self.e[1]*rhs.e[1],
+            self.e[2]*rhs.e[2]
+        ]}}
+    }
+}
 impl Mul<f64> for Vec3 {
     type Output = Vec3;
     fn mul(self, rhs: f64) -> Vec3 {
@@ -94,6 +114,15 @@ impl Div<f64> for Vec3 {
     type Output = Vec3;
     fn div(self, rhs: f64) -> Vec3 {
         Vec3 {e: {[
+            self.e[0]/rhs,
+            self.e[1]/rhs,
+            self.e[2]/rhs
+        ]}}
+    }
+}
+impl DivAssign<f64> for Vec3 {
+    fn div_assign(&mut self, rhs: f64) {
+        *self = Vec3 {e: {[
             self.e[0]/rhs,
             self.e[1]/rhs,
             self.e[2]/rhs

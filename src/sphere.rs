@@ -1,37 +1,47 @@
 use crate::hitable::*;
+use crate::material::*;
 use crate::vec3::Vec3;
 use crate::ray::Ray;
+use std::rc::Rc;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Sphere {
     pub center: Vec3,
-    pub radius: f64
+    pub radius: f64,
+    pub material: Rc<Material>
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let oc = r.origin - self.center;
         let a = Vec3::dot(r.direction, r.direction);
         let b = Vec3::dot(oc, r.direction);
         let c = Vec3::dot(oc, oc) - self.radius*self.radius;
         let discriminant = b*b - a*c;
         if discriminant > 0.0 {
-            let mut temp = (-b - discriminant.sqrt()) / a;
-            if temp < t_max && temp > t_min {
-                rec.t = temp;
-                rec.p = r.point_at_paramter(rec.t);
-                rec.normal = (rec.p - self.center) / self.radius;
-                return true;
+            let mut t = (-b - discriminant.sqrt()) / a;
+            if t < t_max && t > t_min {
+                let p = r.point_at_paramter(t);
+                return Some(HitRecord{
+                    t,
+                    p,
+                    normal: (p - self.center) / self.radius,
+                    material: self.material.clone(),
+                });
             }
-            temp = (-b + discriminant.sqrt()) / a;
-            if temp < t_max && temp > t_min {
-                rec.t = temp;
-                rec.p = r.point_at_paramter(rec.t);
-                rec.normal = (rec.p - self.center) / self.radius;
-                return true;
+            t= (-b + discriminant.sqrt()) / a;
+            if t < t_max && t > t_min {
+                let p = r.point_at_paramter(t);
+
+                return Some(HitRecord{
+                    t,
+                    p, 
+                    normal: (p - self.center) / self.radius,
+                    material: self.material.clone()
+                });
             }
         }
 
-        return false;
+        return None;
     }
 }
