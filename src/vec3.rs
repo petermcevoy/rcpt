@@ -9,6 +9,9 @@ impl Vec3 {
     }
     pub const ZEROS: Vec3 = Vec3{ e: {[0.0, 0.0, 0.0]}};
     pub const ONES: Vec3 = Vec3{ e: {[1.0, 1.0, 1.0]}};
+    pub const RED: Vec3 = Vec3{ e: {[1.0, 0.0, 0.0]}};
+    pub const GREEN: Vec3 = Vec3{ e: {[0.0, 1.0, 0.0]}};
+    pub const BLUE: Vec3 = Vec3{ e: {[0.0, 0.0, 1.0]}};
     pub const ERROR: Vec3 = Vec3{ e: {[1.0, 0.0, 1.0]}};
 
     pub fn x(&self) -> f64 { self.e[0] }
@@ -23,6 +26,14 @@ impl Vec3 {
             a.e[0] * b.e[0] +
             a.e[1] * b.e[1] +
             a.e[2] * b.e[2];
+    }
+    
+    pub fn cross(a: Vec3, b: Vec3) -> Vec3 {
+        return Vec3::new(
+            a.e[1]*b.e[2] - a.e[2]*b.e[1],
+            -(a.e[0]*b.e[2] - a.e[2]*b.e[0]),
+            a.e[0]*b.e[1] - a.e[1]*b.e[0]
+            );
     }
 
     pub fn squared_length(&self) -> f64 {

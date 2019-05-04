@@ -40,45 +40,92 @@ fn color(r: &Ray, world: &HitList, depth: usize) -> Vec3 {
     }
 }
 
+fn make_random_scene() -> HitList {
+    let n = 500;
+    let mut list: HitList = Vec::new();
+    list.push(Box::new(Sphere{
+            center: Vec3::new(0.0, -1000.0, 0.0),
+            radius: 1000.0,
+            material: Rc::new( material::Lambertian{ albedo: 0.5*Vec3::ONES } ),
+        }));
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat = rand::random::<f64>();
+            let center = Vec3::new(
+                (a as f64)+0.9*rand::random::<f64>(),
+                0.2,
+                (b as f64)+0.9*rand::random::<f64>()
+            );
+            if (center-Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                if (choose_mat < 0.8) {
+                    let rand_col = Vec3::new(rand::random::<f64>()*rand::random::<f64>(), rand::random::<f64>()*rand::random::<f64>(), rand::random::<f64>()*rand::random::<f64>());
+                    list.push(Box::new(Sphere{
+                        center,
+                        radius: 0.2,
+                        material: Rc::new( material::Lambertian{ albedo: rand_col }),
+                    }));
+                } else if choose_mat < 0.95 {
+                    let rand_col = 0.5*Vec3::new(1.0 + rand::random::<f64>(), 1.0 + rand::random::<f64>(), 1.0 + rand::random::<f64>());
+                    list.push(Box::new(Sphere{
+                        center,
+                        radius: 0.2,
+                        material: Rc::new( material::Metal{ albedo: rand_col, fuzz: 0.5*rand::random::<f64>() } ),
+                    }));
+                } else {
+                    list.push(Box::new(Sphere{
+                        center,
+                        radius: 0.2,
+                        material: Rc::new( material::Dielectric{ ref_idx: 1.5 }),
+                    }));
+                }
+            }
+        }
+    }
+
+    list.push(Box::new(Sphere{
+        center: Vec3::new(0.0, 1.0, 0.0),
+        radius: 1.0,
+        material: Rc::new( material::Dielectric{ ref_idx: 1.5 } ),
+    }));
+    
+    list.push(Box::new(Sphere{
+        center: Vec3::new(-4.0, 1.0, 0.0),
+        radius: 1.0,
+        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.4, 0.2, 0.1) } ),
+    }));
+    
+    list.push(Box::new(Sphere{
+        center: Vec3::new(4.0, 1.0, 0.0),
+        radius: 1.0,
+        material: Rc::new( material::Metal{ albedo: Vec3::new(0.7, 0.6, 0.5), fuzz: 0.0 } ),
+    }));
+
+    return list;
+}
+
 fn main() -> std::io::Result<()>{
 
-    // Make objects
-    //let lamb = Rc::new(material::Lambertian{albedo: 0.6*Vec3::ONES});
-    let s1 = Sphere{
-        center: Vec3::new(0.0, 0.0, -1.0),
-        radius: 0.5,
-        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.8, 0.3, 0.3) } )
-    };
-    let s2 = Sphere{
-        center: Vec3::new(0.0, -100.5, -1.0),
-        radius: 100.0,
-        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.8, 0.8, 0.0) } )
-    };
-    let s3 = Sphere{
-        center: Vec3::new(1.0, 0.0, -1.0),
-        radius: 0.5,
-        material: Rc::new( material::Metal{ albedo: Vec3::new(0.8, 0.6, 0.2), fuzz: 1.0 } )
-    };
-    let s4 = Sphere{
-        center: Vec3::new(-1.0, 0.0, -1.0),
-        radius: 0.5,
-        material: Rc::new( material::Dielectric{ ref_idx: 1.5 } )
-    };
-    let mut world : HitList = Vec::new();
-    world.push(&s1);
-    world.push(&s2);
-    world.push(&s3);
-    world.push(&s4);
+    let world = make_random_scene();
 
 
     let file = File::create("./out.png")?;
     let ref mut w = BufWriter::new(file);
 
-    let nx: u32 = 200;
-    let ny: u32 = 100;
-    let ns: u32 = 100;
+    let nx: u32 = 1600;
+    let ny: u32 = 800;
+    let ns: u32 = 10;
     
-    let camera = Camera::DEFAULT;
+    let camera;
+    {
+        let lookfrom = Vec3::new(13.0, 2.0,3.0);
+        let lookat = Vec3::new(0.0, 0.0, 0.0);
+        let up = Vec3::new(0.0, 1.0, 0.0);
+        let fov = 20.0;
+        let aspect = (nx as f64)/(ny as f64);
+        let aperture = 0.1;
+        let focus_dist = 10.0;
+        camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
+    }
 
     let mut encoder = png::Encoder::new(w, nx, ny);
     encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);

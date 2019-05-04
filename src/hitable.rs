@@ -15,9 +15,9 @@ pub trait Hitable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
 }
 
-pub type HitList<'a> = Vec<&'a Hitable>;
+pub type HitList = Vec<Box<Hitable>>;
 
-impl<'a> Hitable for HitList<'a> {
+impl Hitable for HitList {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut rec: Option<HitRecord> = None;
         let mut closest_so_far : f64 = t_max;
