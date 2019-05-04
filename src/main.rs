@@ -1,7 +1,10 @@
 use std::fs::File;
 use std::io::BufWriter;
 use png::HasParameters;
-use std::rc::Rc;
+use std::sync::Arc;
+use rand::prelude::*;
+
+use rayon::prelude::*;
 
 mod vec3;
 use vec3::Vec3;
@@ -46,7 +49,7 @@ fn make_random_scene() -> HitList {
     list.push(Box::new(Sphere{
             center: Vec3::new(0.0, -1000.0, 0.0),
             radius: 1000.0,
-            material: Rc::new( material::Lambertian{ albedo: 0.5*Vec3::ONES } ),
+            material: Arc::new( material::Lambertian{ albedo: 0.5*Vec3::ONES } ),
         }));
     for a in -11..11 {
         for b in -11..11 {
@@ -62,20 +65,20 @@ fn make_random_scene() -> HitList {
                     list.push(Box::new(Sphere{
                         center,
                         radius: 0.2,
-                        material: Rc::new( material::Lambertian{ albedo: rand_col }),
+                        material: Arc::new( material::Lambertian{ albedo: rand_col }),
                     }));
                 } else if choose_mat < 0.95 {
                     let rand_col = 0.5*Vec3::new(1.0 + rand::random::<f64>(), 1.0 + rand::random::<f64>(), 1.0 + rand::random::<f64>());
                     list.push(Box::new(Sphere{
                         center,
                         radius: 0.2,
-                        material: Rc::new( material::Metal{ albedo: rand_col, fuzz: 0.5*rand::random::<f64>() } ),
+                        material: Arc::new( material::Metal{ albedo: rand_col, fuzz: 0.5*rand::random::<f64>() } ),
                     }));
                 } else {
                     list.push(Box::new(Sphere{
                         center,
                         radius: 0.2,
-                        material: Rc::new( material::Dielectric{ ref_idx: 1.5 }),
+                        material: Arc::new( material::Dielectric{ ref_idx: 1.5 }),
                     }));
                 }
             }
@@ -85,19 +88,19 @@ fn make_random_scene() -> HitList {
     list.push(Box::new(Sphere{
         center: Vec3::new(0.0, 1.0, 0.0),
         radius: 1.0,
-        material: Rc::new( material::Dielectric{ ref_idx: 1.5 } ),
+        material: Arc::new( material::Dielectric{ ref_idx: 1.5 } ),
     }));
     
     list.push(Box::new(Sphere{
         center: Vec3::new(-4.0, 1.0, 0.0),
         radius: 1.0,
-        material: Rc::new( material::Lambertian{ albedo: Vec3::new(0.4, 0.2, 0.1) } ),
+        material: Arc::new( material::Lambertian{ albedo: Vec3::new(0.4, 0.2, 0.1) } ),
     }));
     
     list.push(Box::new(Sphere{
         center: Vec3::new(4.0, 1.0, 0.0),
         radius: 1.0,
-        material: Rc::new( material::Metal{ albedo: Vec3::new(0.7, 0.6, 0.5), fuzz: 0.0 } ),
+        material: Arc::new( material::Metal{ albedo: Vec3::new(0.7, 0.6, 0.5), fuzz: 0.0 } ),
     }));
 
     return list;
@@ -107,23 +110,23 @@ fn main() -> std::io::Result<()>{
 
     let world = make_random_scene();
 
-
     let file = File::create("./out.png")?;
     let ref mut w = BufWriter::new(file);
 
-    let nx: u32 = 1600;
+    let nx: u32 = 1200;
     let ny: u32 = 800;
-    let ns: u32 = 10;
+    let nparts: u32 = 36;
+    let ns_per_part: u32 = 2;
     
     let camera;
     {
-        let lookfrom = Vec3::new(13.0, 2.0,3.0);
+        let lookfrom = Vec3::new(13.0, 2.0, 3.0);
         let lookat = Vec3::new(0.0, 0.0, 0.0);
         let up = Vec3::new(0.0, 1.0, 0.0);
         let fov = 20.0;
         let aspect = (nx as f64)/(ny as f64);
-        let aperture = 0.1;
-        let focus_dist = 10.0;
+        let aperture = 0.3;
+        let focus_dist = (lookfrom-lookat).length();
         camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
     }
 
@@ -131,27 +134,46 @@ fn main() -> std::io::Result<()>{
     encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
     let mut writer = encoder.write_header()?;
 
-    let mut buffer: Vec<u8> = vec![0; (nx*ny*4) as usize];
-    for y in 0..ny {
-        for x in 0..nx {
-            let mut col = Vec3::ZEROS;
-            for _s in 0..ns {
-                let u = (x as f64 + rand::random::<f64>()) / (nx as f64);
-                let v = (y as f64 + rand::random::<f64>()) / (ny as f64);
-                let r = camera.get_ray(u, v);
-                
-                col += color(&r, &world, 0);
+    println!("Initializing temporary buffers...");
+    let mut buffer_array: Vec<Vec<f64>> = Vec::new();
+    for i in 0..nparts {
+        buffer_array.push(vec![0.0 as f64; (nx*ny*4) as usize]);
+    }
+    println!("done...");
+    buffer_array.par_iter_mut().for_each(|buffer| {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let mut col = Vec3::ZEROS;
+                    for _s in 0..ns_per_part {
+                        let u = (x as f64 + rand::random::<f64>()) / (nx as f64);
+                        let v = (y as f64 + rand::random::<f64>()) / (ny as f64);
+                        let r = camera.get_ray(u, v);
+                        
+                        col += color(&r, &world, 0);
+                    }
+                    col /= ns_per_part as f64;
+                    col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
+                    buffer[(((ny-1-y)*nx + x)*4 + 0) as usize] = col.r();
+                    buffer[(((ny-1-y)*nx + x)*4 + 1) as usize] = col.g();
+                    buffer[(((ny-1-y)*nx + x)*4 + 2) as usize] = col.b();
+                    buffer[(((ny-1-y)*nx + x)*4 + 3) as usize] = 1.0;
+                }
             }
-            col /= ns as f64;
-            col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
-            buffer[(((ny-1-y)*nx + x)*4 + 0) as usize] = (255.99*col.r()) as u8;
-            buffer[(((ny-1-y)*nx + x)*4 + 1) as usize] = (255.99*col.g()) as u8;
-            buffer[(((ny-1-y)*nx + x)*4 + 2) as usize] = (255.99*col.b()) as u8;
-            buffer[(((ny-1-y)*nx + x)*4 + 3) as usize] = 255;
+            print!(".");
         }
+    );
+
+    println!("Averaging...");
+    let mut final_buffer = vec![0 as u8; (nx*ny*4) as usize];
+    for i in 0..(nx*ny*4) {
+        let mut pixel_value: f64 = 0.0;
+        for buffer in buffer_array.iter() {
+            pixel_value += buffer[i as usize] / (nparts as f64);
+        }
+        final_buffer[i as usize] = (255.99*pixel_value) as u8;
     }
 
-    writer.write_image_data(&buffer)?;
+    writer.write_image_data(&final_buffer)?;
     println!("Done.");
     Ok(())
 }

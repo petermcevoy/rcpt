@@ -1,4 +1,5 @@
 use crate::Vec3;
+use rand::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
@@ -19,9 +20,10 @@ impl Ray {
 }
 
 pub fn random_in_unit_sphere() -> Vec3 {
+    let mut rng = rand::thread_rng();
     let mut p : Vec3;
     loop {
-        p = 2.0*Vec3::new(rand::random::<f64>(), rand::random::<f64>(), rand::random::<f64>()) - Vec3::ONES;
+        p = 2.0*Vec3::new(rng.gen(), rng.gen(), rng.gen()) - Vec3::ONES;
         if p.squared_length() < 1.0 {break;}
     }
     return p;

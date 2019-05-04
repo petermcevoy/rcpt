@@ -16,7 +16,7 @@ pub struct Camera {
 fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = 2.0*Vec3::new(rand::random::<f64>(), rand::random::<f64>(), 0.0) - Vec3::new(1.0, 1.0, 0.0);
-        if Vec3::dot(p,p) >= 1.0 {
+        if Vec3::dot(p,p) < 1.0 {
             return p;
         }
     }

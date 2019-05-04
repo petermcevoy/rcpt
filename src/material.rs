@@ -4,7 +4,7 @@ use crate::ray;
 use crate::hitable::*;
 use std::rc::Rc;
 
-pub trait Material {
+pub trait Material: Sync {
     fn scatter(&self, r_in: &Ray, hit_recrod: &HitRecord, attenuation: &mut Vec3, scattered: &mut Ray) -> bool;
 }
 

@@ -2,13 +2,13 @@ use crate::hitable::*;
 use crate::material::*;
 use crate::vec3::Vec3;
 use crate::ray::Ray;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f64,
-    pub material: Rc<Material>
+    pub material: Arc<Material + Send>
 }
 
 impl Hitable for Sphere {
