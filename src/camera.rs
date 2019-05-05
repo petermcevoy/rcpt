@@ -1,5 +1,5 @@
-use crate::vec3::*;
-use crate::ray::*;
+use crate::vec::Vec3;
+use crate::ray::Ray;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {
@@ -13,7 +13,7 @@ pub struct Camera {
     pub w: Vec3
 }
 
-fn random_in_unit_disk() -> Vec3 {
+pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = 2.0*Vec3::new(rand::random::<f64>(), rand::random::<f64>(), 0.0) - Vec3::new(1.0, 1.0, 0.0);
         if Vec3::dot(p,p) < 1.0 {
@@ -23,17 +23,6 @@ fn random_in_unit_disk() -> Vec3 {
 }
 
 impl Camera {
-    pub const DEFAULT: Camera = Camera{
-        lower_left_corner: Vec3::new(-2.0, -1.0, -1.0),
-        horizontal: Vec3::new(4.0, 0.0, 0.0),
-        vertical: Vec3::new(0.0, 2.0, 0.0),
-        origin: Vec3::new(0.0, 0.0, 0.0),
-        lens_radius: 1.0,
-        u: Vec3::new(1.0, 0.0, 0.0),
-        v: Vec3::new(0.0, 1.0, 0.0),
-        w: Vec3::new(0.0, 0.0, -1.0),
-    };
-
     pub fn new(lookfrom: Vec3, lookat: Vec3, vup: Vec3, vfov: f64, aspect: f64,
                aperture: f64, focus_dist: f64) -> Camera {
         let theta = vfov*std::f64::consts::PI/180.0;
