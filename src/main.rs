@@ -2,19 +2,22 @@ use std::sync::Arc;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-mod vec;
+mod cgmath;
 mod ray;
 mod materials;
 mod camera;
 mod model;
+mod aabb;
+mod hitable;
 
-use vec::Vec3;
+use cgmath::{Vec3, Quaternion};
 use ray::Ray;
+use hitable::{Hitable};
 use camera::{Camera, random_in_unit_disk};
 use materials::{Material};
-use model::{Model, Sphere};
+use model::*;
 
-fn color(r: &Ray, world: &Model, depth: usize) -> Vec3 {
+fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
     match world.hit(r) {
         Some(rec) => {
             let mut scattered = Ray::NONE;
@@ -31,28 +34,77 @@ fn color(r: &Ray, world: &Model, depth: usize) -> Vec3 {
     }
 }
 
-fn make_dev_scene() -> Vec<Box<Model>> {
-    let mut spheres: Vec<Sphere> = vec![
-        Sphere{
+fn make_cornell() -> Vec<Box<Hitable>> {
+    let scene: Vec<Box<Hitable>> = vec![
+        Box::new( //Green
+            FlippedNormal { hitable_ref: Box::new( YZRect{
+                y0: 0.0, y1: 555.0, z0: 0.0, z1: 555.0, k: 555.0,
+                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.12, 0.45, 0.15) } )
+            } ) } 
+        ),
+        Box::new(  //Red
+            YZRect{
+                y0: 0.0, y1: 555.0, z0: 0.0, z1: 555.0, k: 0.0,
+                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.65, 0.05, 0.05) } )
+            }
+        ),
+        Box::new( //Light
+            XZRect{
+                x0: 213.0, x1: 343.0, z0: 227.0, z1: 332.0, k: 554.0,
+                material: Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } )
+            }
+        ),
+        Box::new( //White
+            XZRect{
+                x0: 0.0, x1: 555.0, z0: 0.0, z1: 555.0, k: 550.0,
+                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
+            } 
+        ),
+        Box::new( //White
+            FlippedNormal { hitable_ref: Box::new( XZRect{
+                x0: 0.0, x1: 555.0, z0: 0.0, z1: 555.0, k: 0.0,
+                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
+            } )}
+        ),
+        Box::new( //White
+            FlippedNormal { hitable_ref: Box::new( XYRect{
+                x0: 0.0, x1: 555.0, y0: 0.0, y1: 555.0, k: 550.0,
+                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
+            } )}
+        ),
+    ];
+    return scene;
+}
+fn make_dev_scene() -> Vec<Box<Hitable>> {
+    let list: Vec<Box<Hitable>> = vec![
+        Box::new(Sphere{
             center: Vec3::new(0.0, -1000.0, 0.0),
             radius: 1000.0,
             material: Arc::new( materials::Lambertian{ albedo: 0.8*Vec3::ONES } ),
-        },
-        Sphere{
+        }),
+        Box::new(Sphere{
             center: Vec3::new(2.5, 1.0, -2.0),
             radius: 1.0,
             material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
-        },
-        Sphere{
-            center: Vec3::new(0.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
-        },
+        }),
+        //Box::new(Plane{
+        //    origin: Vec3::new(0.0, 1.0, 0.0),
+        //    normal: Vec3::new(1.0, 0.0, 0.0),
+        //    rot_around_normal: 0.0,
+        //    width: 0.0,
+        //    height: 0.0,
+        //    material: Arc::new( materials::DiffuseLight{ albedo: 1.0*Vec3::ONES } ),
+        //}),
+        //Sphere{
+        //    center: Vec3::new(0.0, 1.0, 0.0),
+        //    radius: 1.0,
+        //    material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
+        //},
     ];
-    let world: Vec<Box<Model>> = spheres.into_iter().map(|s| Box::new(s) as Box<Model>).collect();
-    return world;
+    //let world: Vec<Box<Hitable>> = spheres.into_iter().map(|s| Box::new(s) as Box<Hitable>).collect();
+    return list;
 }
-fn make_random_scene() -> Vec<Box<Model>> {
+fn make_random_scene() -> Vec<Box<Hitable>> {
     let mut spheres: Vec<Sphere> = vec![
         Sphere{
             center: Vec3::new(0.0, -1000.0, 0.0),
@@ -104,7 +156,7 @@ fn make_random_scene() -> Vec<Box<Model>> {
         }
     }
 
-    let world: Vec<Box<Model>> = spheres.into_iter().map(|s| Box::new(s) as Box<Model>).collect();
+    let world: Vec<Box<Hitable>> = spheres.into_iter().map(|s| Box::new(s) as Box<Hitable>).collect();
     return world;
 }
 
@@ -115,6 +167,7 @@ fn main() -> std::io::Result<()>{
     let nparts: u32 = 12;
     let ns_per_part: u32 = 8;
     
+    // Camera for dev_scene and random_scene
     let camera;
     {
         let lookfrom = Vec3::new(13.0, 2.0, 3.0);
@@ -127,8 +180,21 @@ fn main() -> std::io::Result<()>{
         camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
     }
     
+    //let camera;
+    //{
+    //    let lookfrom = Vec3::new(278.0, 278.0, -800.0);
+    //    let lookat = Vec3::new(278.0, 278.0, 0.0);
+    //    let up = Vec3::new(0.0, 1.0, 0.0);
+    //    let fov = 40.0;
+    //    let aspect = (nx as f64)/(ny as f64);
+    //    let aperture = 0.0;
+    //    let focus_dist = 10.0;//(lookfrom-lookat).length();
+    //    camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
+    //}
+    
     //let world = make_random_scene();
     let world = make_dev_scene();
+    //let world = make_cornell();
 
     //Initializing temporary buffers for threads...
     let mut buffer_array: Vec<Vec<f64>> = Vec::new();

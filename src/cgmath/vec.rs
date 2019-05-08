@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub, Mul, Div, DivAssign};
+use std::ops::{Add, AddAssign, Sub, Mul, Div, DivAssign, Index};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Vec3(pub f64, pub f64, pub f64);
@@ -21,27 +21,31 @@ impl Vec3 {
     pub fn g(&self) -> f64 { self.1 }
     pub fn b(&self) -> f64 { self.2 }
 
-    pub fn dot(a: Vec3, b: Vec3) -> f64 {
+    pub fn dot(self, b: Vec3) -> f64 {
         return 
-            a.0 * b.0 +
-            a.1 * b.1 +
-            a.2 * b.2;
+            self.0 * b.0 +
+            self.1 * b.1 +
+            self.2 * b.2;
     }
     
-    pub fn cross(a: Vec3, b: Vec3) -> Vec3 {
+    pub fn cross(self, b: Vec3) -> Vec3 {
         return Vec3::new(
-            a.1*b.2 - a.2*b.1,
-            -(a.0*b.2 - a.2*b.0),
-            a.0*b.1 - a.1*b.0
+            self.1*b.2 - self.2*b.1,
+            -(self.0*b.2 - self.2*b.0),
+            self.0*b.1 - self.1*b.0
             );
     }
-
+    
     pub fn squared_length(&self) -> f64 {
         (
             self.0*self.0 + 
             self.1*self.1 + 
             self.2*self.2 
         )
+    }
+    
+    pub fn norm(&self) -> f64 {
+        return self.squared_length();
     }
 
     pub fn length(&self) -> f64 {
@@ -137,5 +141,18 @@ impl DivAssign<f64> for Vec3 {
             self.1/rhs,
             self.2/rhs
         )
+    }
+}
+
+impl Index<usize> for Vec3 {
+    type Output = f64;
+
+    fn index(&self, i: usize) -> &f64 {
+        match i {
+            0 => return &self.0,
+            1 => return &self.1,
+            2 => return &self.2,
+            _ => panic!("Out of bounds.")
+        }
     }
 }

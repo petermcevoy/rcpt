@@ -1,4 +1,4 @@
-use crate::vec::Vec3;
+use crate::Vec3;
 use crate::ray::Ray;
 
 #[derive(Copy, Clone, Debug)]
@@ -16,7 +16,7 @@ pub struct Camera {
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = 2.0*Vec3::new(rand::random::<f64>(), rand::random::<f64>(), 0.0) - Vec3::new(1.0, 1.0, 0.0);
-        if Vec3::dot(p,p) < 1.0 {
+        if p.dot(p) < 1.0 {
             return p;
         }
     }
@@ -30,8 +30,8 @@ impl Camera {
         let half_width = aspect*half_height;
 
         let w = (lookfrom - lookat).make_unit_vector();
-        let u = Vec3::cross(vup, w).make_unit_vector();
-        let v = Vec3::cross(w, u);
+        let u = vup.cross(w).make_unit_vector();
+        let v = w.cross(u);
 
         Camera {
             lower_left_corner: lookfrom - half_width*focus_dist*u - half_height*focus_dist*v - focus_dist*w,

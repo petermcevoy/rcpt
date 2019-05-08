@@ -1,4 +1,4 @@
-use crate::vec::Vec3;
+use crate::Vec3;
 use rand::prelude::*;
 
 #[derive(Copy, Clone, Debug)]

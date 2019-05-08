@@ -1,7 +1,6 @@
-use crate::vec::Vec3;
+use crate::Vec3;
 use crate::ray::{Ray, random_in_unit_sphere, schlick, reflect, refract};
-//use crate::hitable::*;
-use crate::model::{Hit};
+use crate::hitable::Hit;
 
 pub trait Material: Sync {
     fn scatter(&self, r_in: &Ray, hit_recrod: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool;
@@ -39,7 +38,7 @@ impl Material for Metal {
         let reflected = reflect(r_in.direction.make_unit_vector(), rec.normal);
         *scattered = Ray::new(rec.p, reflected + self.fuzz*random_in_unit_sphere());
         *attenuation = self.albedo;
-        return Vec3::dot(scattered.direction, rec.normal) > 0.0;
+        return scattered.direction.dot(rec.normal) > 0.0;
     }
 }
 
@@ -55,14 +54,14 @@ impl Material for Dielectric {
         let outward_normal;
         let ni_over_nt;
         let cosine;
-        if Vec3::dot(r_in.direction, rec.normal) > 0.0 {
+        if r_in.direction.dot(rec.normal) > 0.0 {
             outward_normal = -1.0*rec.normal;
             ni_over_nt = self.ref_idx;
-            cosine = self.ref_idx * Vec3::dot(r_in.direction, rec.normal) / r_in.direction.length();
+            cosine = self.ref_idx * r_in.direction.dot(rec.normal) / r_in.direction.length();
         } else {
             outward_normal = rec.normal;
             ni_over_nt = 1.0 / self.ref_idx;
-            cosine = -1.0*Vec3::dot(r_in.direction, rec.normal) / r_in.direction.length();
+            cosine = -1.0*r_in.direction.dot(rec.normal) / r_in.direction.length();
         }
 
         match refract(r_in.direction, outward_normal, ni_over_nt) {
