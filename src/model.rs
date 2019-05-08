@@ -8,6 +8,8 @@ use std::sync::Arc;
 pub struct Hit {
     pub t: f64,
     pub p: Vec3,
+    pub u: f64,
+    pub v: f64,
     pub normal: Vec3,
     pub material: Arc<Material>
 }
@@ -40,6 +42,8 @@ impl Model for Sphere {
                 return Some(Hit{
                     t,
                     p,
+                    u: 0.0, //TODO
+                    v: 0.0, //TODO
                     normal: (p - self.center) / self.radius,
                     material: self.material.clone(),
                 });
@@ -51,12 +55,45 @@ impl Model for Sphere {
                 return Some(Hit{
                     t,
                     p, 
+                    u: 0.0, //TODO
+                    v: 0.0, //TODO
                     normal: (p - self.center) / self.radius,
                     material: self.material.clone()
                 });
             }
         }
         None
+    }
+}
+
+pub struct XYRect { 
+    x0: f64, x1: f64, y0: f64, y1: f64, k: f64,
+    pub material: Arc<Material + Send>
+}
+
+impl Model for XYRect {
+    fn hit(&self, r: &Ray) -> Option<Hit> {
+        let t = (self.k-r.origin.z()) / r.direction.z();
+
+        if (t < T_MIN || t > T_MAX) { 
+            return None 
+        }
+
+        let x = r.origin.x() + t*r.direction.x();
+        let y = r.origin.y() + t*r.direction.y();
+
+        if x < self.x0 || x > self.x1 || y < self.y0 || y > self.y1 { 
+            return None
+        }
+
+        Some(Hit{
+            t,
+            p: r.point_at_paramter(t),
+            u: (x-self.x0) / (self.x1-self.x0),
+            v: (y-self.y0) / (self.y1-self.y0),
+            normal: Vec3(0.0, 0.0, 1.0),
+            material: self.material.clone(),
+        })
     }
 }
 
@@ -79,3 +116,5 @@ impl Model for Vec<Box<Model>> {
         rec
     }
 }
+
+

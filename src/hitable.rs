@@ -7,6 +7,8 @@ use std::sync::Arc;
 pub struct HitRecord {
     pub t: f64,
     pub p: Vec3,
+    pub u: f64,
+    pub v: f64,
     pub normal: Vec3,
     pub material: Arc<Material>
 }

@@ -19,20 +19,39 @@ fn color(r: &Ray, world: &Model, depth: usize) -> Vec3 {
         Some(rec) => {
             let mut scattered = Ray::NONE;
             let mut attenuation = Vec3::ZEROS;
-            let mut col = Vec3::ZEROS;
+            let emitted = rec.material.emitted(rec.u, rec.v, &rec.p);
             if depth < 50 && rec.material.scatter(&r, &rec, &mut attenuation, &mut scattered) {
-                col = attenuation*color(&scattered, world, depth+1);
-            }
-            return col;
+                return emitted + attenuation*color(&scattered, world, depth+1);
+            } 
+            return emitted
         }, 
         None => {
-            let unit_direction : Vec3 = r.direction.make_unit_vector();
-            let t: f64 = 0.5*(unit_direction.y() + 1.0);
-            return (1.0-t)*Vec3::ONES + t*Vec3::new(0.5, 0.7, 1.0);
+            return Vec3::ZEROS;
         }
     }
 }
 
+fn make_dev_scene() -> Vec<Box<Model>> {
+    let mut spheres: Vec<Sphere> = vec![
+        Sphere{
+            center: Vec3::new(0.0, -1000.0, 0.0),
+            radius: 1000.0,
+            material: Arc::new( materials::Lambertian{ albedo: 0.8*Vec3::ONES } ),
+        },
+        Sphere{
+            center: Vec3::new(2.5, 1.0, -2.0),
+            radius: 1.0,
+            material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
+        },
+        Sphere{
+            center: Vec3::new(0.0, 1.0, 0.0),
+            radius: 1.0,
+            material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
+        },
+    ];
+    let world: Vec<Box<Model>> = spheres.into_iter().map(|s| Box::new(s) as Box<Model>).collect();
+    return world;
+}
 fn make_random_scene() -> Vec<Box<Model>> {
     let mut spheres: Vec<Sphere> = vec![
         Sphere{
@@ -91,8 +110,8 @@ fn make_random_scene() -> Vec<Box<Model>> {
 
 fn main() -> std::io::Result<()>{
 
-    let nx: u32 = 1200;
-    let ny: u32 = 800;
+    let nx: u32 = 400;
+    let ny: u32 = 200;
     let nparts: u32 = 12;
     let ns_per_part: u32 = 8;
     
@@ -108,7 +127,8 @@ fn main() -> std::io::Result<()>{
         camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
     }
     
-    let world = make_random_scene();
+    //let world = make_random_scene();
+    let world = make_dev_scene();
 
     //Initializing temporary buffers for threads...
     let mut buffer_array: Vec<Vec<f64>> = Vec::new();
@@ -146,6 +166,7 @@ fn main() -> std::io::Result<()>{
         for buffer in buffer_array.iter() {
             pixel_value += buffer[i as usize] / (nparts as f64);
         }
+        if pixel_value > 1.0 { pixel_value = 1.0; }
         final_buffer[i as usize] = (255.99*pixel_value) as u8;
     }
 

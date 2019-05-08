@@ -5,17 +5,28 @@ use crate::model::{Hit};
 
 pub trait Material: Sync {
     fn scatter(&self, r_in: &Ray, hit_recrod: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool;
+    fn emitted(&self, u: f64, v: f64, p: &Vec3) -> Vec3 {
+        Vec3::ZEROS
+    }
 }
 
-pub struct Lambertian {
-    pub albedo: Vec3
-}
+pub struct Lambertian { pub albedo: Vec3 }
 impl Material for Lambertian {
     fn scatter(&self, _r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
         let target = rec.p + rec.normal + random_in_unit_sphere();
         *scattered = Ray::new(rec.p, target - rec.p);
         *attenuation = self.albedo;
         return true;
+    }
+}
+
+pub struct DiffuseLight { pub albedo: Vec3 }
+impl Material for DiffuseLight {
+    fn scatter(&self, _r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
+        return false;
+    }
+    fn emitted(&self, u: f64, v: f64, p: &Vec3) -> Vec3 {
+        return self.albedo;
     }
 }
 
