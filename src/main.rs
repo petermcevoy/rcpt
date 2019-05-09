@@ -66,11 +66,11 @@ fn make_cornell() -> Vec<Box<Hitable>> {
         ),
         Box::new( //Light
             Plane {
-                origin: Vec3((343.0 + 213.0)/2.0, 554.0, (332.0 + 227.0)/2.0),
+                origin: Vec3(-278.0, 547.8, 279.5),
                 normal: Vec3(0.0, -1.0, 0.0),
                 rot_around_normal: 0.0,
-                width: (343.0 - 213.0),
-                height: (332.0 - 227.0),
+                width: 130.0,
+                height: 105.0,
                 material: Some(Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } ) )
             }  
         ),
@@ -106,7 +106,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
         ),
         Box::new( //Small box 
             Cuboid {
-                origin: Vec3(130.0 + 165.0/2.0, 165.0/2.0, 65.0 + 165.0/2.0),
+                origin: Vec3(-185.0 + 165.0/2.0, 165.0/2.0, 65.0 + 165.0/2.0),
                 rot: Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)),
                 size: Vec3(165.0, 165.0, 165.0),
                 material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
@@ -256,8 +256,8 @@ fn main() -> std::io::Result<()>{
     
     let camera;
     {
-        let lookfrom = Vec3::new(278.0, 278.0, -800.0);
-        let lookat = Vec3::new(278.0, 278.0, 0.0);
+        let lookfrom = Vec3::new(-278.0, 278.0, -800.0);
+        let lookat = Vec3::new(-278.0, 278.0, 0.0);
         let up = Vec3::new(0.0, 1.0, 0.0);
         let fov = 40.0;
         let aspect = (nx as f64)/(ny as f64);
