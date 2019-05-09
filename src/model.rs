@@ -13,7 +13,7 @@ use std::sync::Arc;
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f64,
-    pub material: Arc<Material + Send>
+    pub material: Option<Arc<Material + Send>>
 }
 
 impl Hitable for Sphere {
@@ -68,17 +68,29 @@ pub struct Plane {
     pub rot_around_normal: f64, // Axis-Angle rotation around normal
     pub width: f64,
     pub height: f64,
-    pub material: Arc<Material + Send>
+    pub material: Option<Arc<Material + Send>>
+}
+impl Plane {
+    pub fn new() -> Plane {
+        Plane{
+            origin: Vec3::ZEROS,
+            normal: Vec3(0.0, 0.0, 1.0),
+            rot_around_normal: 0.0,
+            width: 1.0,
+            height: 1.0,
+            material: None
+        }
+    }
 }
 
 impl Hitable for Plane {
     fn hit(&self, r: &Ray) -> Option<Hit> {
 		let local_normal = Vec3(0.0, 0.0, 1.0);
 
-        let rot = Quaternion::rot_from_vecs(self.normal, local_normal);
+        let irot = Quaternion::rot_from_vecs(self.normal, local_normal);
         let local_ray = Ray{
-            origin: rot.transform_vec(r.origin - self.origin),
-            direction: rot.transform_vec(r.direction),
+            origin: irot.transform_vec(r.origin - self.origin),
+            direction: irot.transform_vec(r.direction),
         };
         
         // Check if we intersect the infinite plane.
@@ -106,108 +118,85 @@ impl Hitable for Plane {
     }
 }
 
-pub struct XYRect { 
-    pub x0: f64, pub x1: f64, pub y0: f64, pub y1: f64, pub k: f64,
-    pub material: Arc<Material + Send>
+pub struct Cuboid {
+    pub origin: Vec3,
+    pub rot: Quaternion,
+    pub size: Vec3,
+    pub material: Option<Arc<Material + Send>>
 }
 
-impl Hitable for XYRect {
+impl Hitable for Cuboid {
     fn hit(&self, r: &Ray) -> Option<Hit> {
-        let t = (self.k-r.origin.z()) / r.direction.z();
+        // The local cuboid consits of 4 planes.
+        // It has origin in (0,0,0) 
+        
+        let irot = self.rot.inv();
+        let local_ray = Ray{
+            origin: irot.transform_vec(r.origin - self.origin),
+            direction: irot.transform_vec(r.direction),
+        };
 
-        if t < T_MIN || t > T_MAX { 
-            return None 
+        fn transform_hit_to_global(local_rec: Option<Hit>, global_ray: &Ray, c: &Cuboid) -> Option<Hit> {
+            if let Some(mut rec) = local_rec {
+                rec.material = c.material.clone();
+                rec.p = global_ray.point_at_paramter(rec.t);
+                return Some(rec);
+            }
+            None
         }
 
-        let x = r.origin.x() + t*r.direction.x();
-        let y = r.origin.y() + t*r.direction.y();
+        let mut temp_plane = Plane::new();
+		let mut temp_plane_hit;
+        
+        // Hit front?
+        temp_plane.origin = Vec3(0.0, 0.0, self.size.z()/2.0);
+        temp_plane.normal = Vec3(0.0, 0.0, 1.0);
+        temp_plane.width = self.size.x();
+        temp_plane.height = self.size.y();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
+        
+        // Hit back?
+        temp_plane.origin = Vec3(0.0, 0.0, -self.size.z()/2.0);
+        temp_plane.normal = Vec3(0.0, 0.0, -1.0);
+        temp_plane.width = self.size.x();
+        temp_plane.height = self.size.y();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
 
-        if x < self.x0 || x > self.x1 || y < self.y0 || y > self.y1 { 
-            return None
-        }
+        // Hit left side?
+        temp_plane.origin = Vec3(-self.size.x()/2.0, 0.0, 0.0);
+        temp_plane.normal = Vec3(-1.0, 0.0, 0.0);
+        temp_plane.width = self.size.z();
+        temp_plane.height = self.size.y();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
 
-        Some(Hit{
-            t,
-            p: r.point_at_paramter(t),
-            u: (x-self.x0) / (self.x1-self.x0),
-            v: (y-self.y0) / (self.y1-self.y0),
-            normal: Vec3(0.0, 0.0, 1.0),
-            material: self.material.clone(),
-        })
-    }
-}
+        // Hit right side?
+        temp_plane.origin = Vec3(self.size.x()/2.0, 0.0, 0.0);
+        temp_plane.normal = Vec3(1.0, 0.0, 0.0);
+        temp_plane.width = self.size.z();
+        temp_plane.height = self.size.y();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
+        
+        // Hit top?
+        temp_plane.origin = Vec3(0.0, self.size.y()/2.0, 0.0);
+        temp_plane.normal = Vec3(0.0, 1.0, 0.0);
+        temp_plane.width = self.size.x();
+        temp_plane.height = self.size.z();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
+        
+        // Hit bottom?
+        temp_plane.origin = Vec3(0.0, -self.size.y()/2.0, 0.0);
+        temp_plane.normal = Vec3(0.0, -1.0, 0.0);
+        temp_plane.width = self.size.x();
+        temp_plane.height = self.size.z();
+        temp_plane_hit = transform_hit_to_global(temp_plane.hit(&local_ray), r, &self);
+        if temp_plane_hit.is_some() {return temp_plane_hit;}
 
-pub struct FlippedNormal { pub hitable_ref: Box<Hitable> }
-impl Hitable for FlippedNormal {
-    fn hit(&self, r: &Ray) -> Option<Hit> {
-        match self.hitable_ref.hit(r) {
-            Some(rec) => { 
-                let mut temp_rec = rec.clone();
-                temp_rec.normal = -1.0*rec.normal;
-                return Some(temp_rec) 
-            },
-            None => return None
-        }
-    }
-}
+        None
 
-pub struct XZRect { 
-    pub x0: f64, pub x1: f64, pub z0: f64, pub z1: f64, pub k: f64,
-    pub material: Arc<Material + Send>
-}
-
-impl Hitable for XZRect {
-    fn hit(&self, r: &Ray) -> Option<Hit> {
-        let t = (self.k-r.origin.y()) / r.direction.y();
-
-        if t < T_MIN || t > T_MAX { 
-            return None 
-        }
-
-        let x = r.origin.x() + t*r.direction.x();
-        let z = r.origin.z() + t*r.direction.z();
-
-        if x < self.x0 || x > self.x1 || z < self.z0 || z > self.z1 { 
-            return None
-        }
-
-        Some(Hit{
-            t,
-            p: r.point_at_paramter(t),
-            u: (x-self.x0) / (self.x1-self.x0),
-            v: (z-self.z0) / (self.z1-self.z0),
-            normal: Vec3(0.0, -1.0, 0.0),
-            material: self.material.clone(),
-        })
-    }
-}
-pub struct YZRect { 
-    pub y0: f64, pub y1: f64, pub z0: f64, pub z1: f64, pub k: f64,
-    pub material: Arc<Material + Send>
-}
-
-impl Hitable for YZRect {
-    fn hit(&self, r: &Ray) -> Option<Hit> {
-        let t = (self.k-r.origin.x()) / r.direction.x();
-
-        if t < T_MIN || t > T_MAX { 
-            return None 
-        }
-
-        let y = r.origin.y() + t*r.direction.y();
-        let z = r.origin.z() + t*r.direction.z();
-
-        if y < self.y0 || y > self.y1 || z < self.z0 || z > self.z1 { 
-            return None
-        }
-
-        Some(Hit{
-            t,
-            p: r.point_at_paramter(t),
-            u: (y-self.y0) / (self.y1-self.y0),
-            v: (z-self.z0) / (self.z1-self.z0),
-            normal: Vec3(1.0, 0.0, 0.0),
-            material: self.material.clone(),
-        })
     }
 }

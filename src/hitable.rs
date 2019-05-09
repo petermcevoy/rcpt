@@ -14,7 +14,7 @@ pub struct Hit {
     pub u: f64,
     pub v: f64,
     pub normal: Vec3,
-    pub material: Arc<Material>
+    pub material: Option<Arc<Material + Send>>
 }
 
 pub trait Hitable: Sync + Send {

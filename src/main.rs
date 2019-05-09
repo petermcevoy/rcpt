@@ -17,15 +17,23 @@ use camera::{Camera, random_in_unit_disk};
 use materials::{Material};
 use model::*;
 
+use std::f64::consts::PI;
+
 fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
     match world.hit(r) {
         Some(rec) => {
             let mut scattered = Ray::NONE;
             let mut attenuation = Vec3::ZEROS;
-            let emitted = rec.material.emitted(rec.u, rec.v, &rec.p);
-            if depth < 10 && rec.material.scatter(&r, &rec, &mut attenuation, &mut scattered) {
-                return emitted + attenuation*color(&scattered, world, depth+1);
-            } 
+            let emitted;
+            match rec.material.as_ref() {
+                Some(mat) => {
+                    emitted = mat.emitted(rec.u, rec.v, &rec.p);
+                    if depth < 10 && mat.scatter(&r, &rec, &mut attenuation, &mut scattered) {
+                        return emitted + attenuation*color(&scattered, world, depth+1);
+                    } 
+                }, 
+                None => {emitted = Vec3::ERROR;}
+            }
             return emitted
         }, 
         None => {
@@ -37,152 +45,202 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
 fn make_cornell() -> Vec<Box<Hitable>> {
     let scene: Vec<Box<Hitable>> = vec![
         Box::new( //Green
-            FlippedNormal { hitable_ref: Box::new( YZRect{
-                y0: 0.0, y1: 555.0, z0: 0.0, z1: 555.0, k: 555.0,
-                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.12, 0.45, 0.15) } )
-            } ) } 
+            Plane {
+                origin: Vec3(555.0, 555.0/2.0, 555.0/2.0),
+                normal: Vec3(-1.0, 0.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 555.0,
+                height: 555.0,
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.12, 0.45, 0.15) } ) )
+            }  
         ),
-        Box::new(  //Red
-            YZRect{
-                y0: 0.0, y1: 555.0, z0: 0.0, z1: 555.0, k: 0.0,
-                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.65, 0.05, 0.05) } )
-            }
+        Box::new( //Red
+            Plane {
+                origin: Vec3(0.0, 555.0/2.0, 555.0/2.0),
+                normal: Vec3(1.0, 0.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 555.0,
+                height: 555.0,
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.65, 0.05, 0.05) } ) )
+            }  
         ),
         Box::new( //Light
-            XZRect{
-                x0: 213.0, x1: 343.0, z0: 227.0, z1: 332.0, k: 554.0,
-                material: Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } )
-            }
+            Plane {
+                origin: Vec3((343.0 + 213.0)/2.0, 554.0, (332.0 + 227.0)/2.0),
+                normal: Vec3(0.0, -1.0, 0.0),
+                rot_around_normal: 0.0,
+                width: (343.0 - 213.0),
+                height: (332.0 - 227.0),
+                material: Some(Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } ) )
+            }  
         ),
-        Box::new( //White
-            XZRect{
-                x0: 0.0, x1: 555.0, z0: 0.0, z1: 555.0, k: 550.0,
-                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
-            } 
+        Box::new( //White floor
+            Plane {
+                origin: Vec3(555.0/2.0, 0.0, 555.0/2.0),
+                normal: Vec3(0.0, 1.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 555.0,
+                height: 555.0,
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+            }  
         ),
-        Box::new( //White
-            FlippedNormal { hitable_ref: Box::new( XZRect{
-                x0: 0.0, x1: 555.0, z0: 0.0, z1: 555.0, k: 0.0,
-                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
-            } )}
+        Box::new( //White ceiling
+            Plane {
+                origin: Vec3(555.0/2.0, 555.0, 555.0/2.0),
+                normal: Vec3(0.0, -1.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 555.0,
+                height: 555.0,
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+            }  
         ),
-        Box::new( //White
-            FlippedNormal { hitable_ref: Box::new( XYRect{
-                x0: 0.0, x1: 555.0, y0: 0.0, y1: 555.0, k: 550.0,
-                material: Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } )
-            } )}
+        Box::new( //White wall
+            Plane {
+                origin: Vec3(555.0/2.0, 555.0/2.0, 555.0),
+                normal: Vec3(0.0, 0.0, -1.0),
+                rot_around_normal: 0.0,
+                width: 555.0,
+                height: 555.0,
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+            }  
+        ),
+        Box::new( //Small box 
+            Cuboid {
+                origin: Vec3(130.0 + 165.0/2.0, 165.0/2.0, 65.0 + 165.0/2.0),
+                rot: Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)),
+                size: Vec3(165.0, 165.0, 165.0),
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+            }  
+        ),
+        Box::new( //Tall box 
+            Cuboid {
+                origin: Vec3(265.0 + 165.0/2.0, 330.0/2.0, 295.0 + 165.0/2.0),
+                rot: Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)),
+                size: Vec3(165.0, 330.0, 165.0),
+                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+            }  
         ),
     ];
     return scene;
 }
-fn make_dev_scene() -> Vec<Box<Hitable>> {
-    let list: Vec<Box<Hitable>> = vec![
-        Box::new(Sphere{
-            center: Vec3::new(0.0, -1000.0, 0.0),
-            radius: 1000.0,
-            material: Arc::new( materials::Lambertian{ albedo: 0.8*Vec3::ONES } ),
-        }),
-        //Box::new(Sphere{
-        //    center: Vec3::new(2.5, 1.0, -2.0),
-        //    radius: 1.0,
-        //    material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
-        //}),
-        Box::new(Plane{
-            origin: Vec3::new(0.0, 3.0, -1.0),
-            normal: Vec3::new(0.0, -1.0, 1.0),
-            rot_around_normal: 0.0,
-            width: 8.0,
-            height: 3.0,
-            material: Arc::new( materials::DiffuseLight{ albedo: 1.0*Vec3::ONES } ),
-        }),
-        Box::new(Sphere{
-            center: Vec3::new(0.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
-        }),
-
-    ];
-    return list;
-}
-fn make_random_scene() -> Vec<Box<Hitable>> {
-    let mut spheres: Vec<Sphere> = vec![
-        Sphere{
-            center: Vec3::new(0.0, -1000.0, 0.0),
-            radius: 1000.0,
-            material: Arc::new( materials::Lambertian{ albedo: 0.5*Vec3::ONES } ),
-        },
-        Sphere{
-            center: Vec3::new(0.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Arc::new( materials::Dielectric{ ref_idx: 1.5 } ),
-        },
-        Sphere{
-            center: Vec3::new(-4.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Arc::new( materials::Lambertian{ albedo: Vec3::new(0.4, 0.2, 0.1) } ),
-        },
-        Sphere{
-            center: Vec3::new(4.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Arc::new( materials::Metal{ albedo: Vec3::new(0.7, 0.6, 0.5), fuzz: 0.0 } ),
-        },
-    ];
-
-    fn random_material() -> Arc<Material + Send> {
-        let rand_vec = Vec3::new(random(), random(), random());
-        let rval = rand::random::<f64>();
-        if rval < 0.7 {
-            Arc::new( materials::Lambertian{ albedo: rand_vec})
-        } else if rval < 0.9 {
-            Arc::new(materials::Metal {
-                albedo: Vec3::new(0.5, 0.5, 0.5) + 0.5*rand_vec, 
-                fuzz: 0.5*rand::random::<f64>(),
-            })
-        } else {
-            Arc::new( materials::Dielectric{ ref_idx: 1.5 })
-        }
-    }
-
-    for _ in 0..500 {
-        let r = 0.4 as f64;
-        let Vec3(x, z, _) = random_in_unit_disk();
-        let pos = 20.0 * Vec3(x, 0.0, z) + Vec3(0.0, r, 0.0);
-        if spheres.iter().all(|s| (s.center - pos).length() >= s.radius + r) {
-            spheres.push(Sphere {
-                center: pos,
-                radius: r,
-                material: random_material(),
-            });
-        }
-    }
-
-    let world: Vec<Box<Hitable>> = spheres.into_iter().map(|s| Box::new(s) as Box<Hitable>).collect();
-    return world;
-}
+//fn make_dev_scene() -> Vec<Box<Hitable>> {
+//    let list: Vec<Box<Hitable>> = vec![
+//        Box::new(Sphere{
+//            center: Vec3::new(0.0, -1000.0, 0.0),
+//            radius: 1000.0,
+//            material: Some(Arc::new( materials::Lambertian{ albedo: 0.8*Vec3::ONES } )),
+//        }),
+//        //Box::new(Sphere{
+//        //    center: Vec3::new(2.5, 1.0, -2.0),
+//        //    radius: 1.0,
+//        //    material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
+//        //}),
+//        Box::new(Plane{
+//            origin: Vec3::new(0.0, 3.0, -1.0),
+//            normal: Vec3::new(0.0, -1.0, 1.0),
+//            rot_around_normal: 0.0,
+//            width: 8.0,
+//            height: 3.0,
+//            material: Some(Arc::new( materials::DiffuseLight{ albedo: 1.0*Vec3::ONES } )),
+//        }),
+//        Box::new(Sphere{
+//            center: Vec3::new(0.0, 1.0, 0.0),
+//            radius: 1.0,
+//            material: Some(Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } )),
+//        }),
+//        Box::new(Sphere{
+//            center: Vec3::new(5.0, 1.0, -10.0),
+//            radius: 1.0,
+//            material: None,
+//        }),
+//        Box::new(Cuboid{
+//            origin: Vec3(4.0, 1.0, 3.0),
+//            rot: Quaternion::from_eulerangles(Vec3(0.0, PI/4.0, 0.0)),
+//            size: Vec3(1.0, 2.0, 3.0),
+//            material: None,
+//        }),
+//    ];
+//    return list;
+//}
+//fn make_random_scene() -> Vec<Box<Hitable>> {
+//    let mut spheres: Vec<Sphere> = vec![
+//        Sphere{
+//            center: Vec3::new(0.0, -1000.0, 0.0),
+//            radius: 1000.0,
+//            material: Arc::new( materials::Lambertian{ albedo: 0.5*Vec3::ONES } ),
+//        },
+//        Sphere{
+//            center: Vec3::new(0.0, 1.0, 0.0),
+//            radius: 1.0,
+//            material: Arc::new( materials::Dielectric{ ref_idx: 1.5 } ),
+//        },
+//        Sphere{
+//            center: Vec3::new(-4.0, 1.0, 0.0),
+//            radius: 1.0,
+//            material: Arc::new( materials::Lambertian{ albedo: Vec3::new(0.4, 0.2, 0.1) } ),
+//        },
+//        Sphere{
+//            center: Vec3::new(4.0, 1.0, 0.0),
+//            radius: 1.0,
+//            material: Arc::new( materials::Metal{ albedo: Vec3::new(0.7, 0.6, 0.5), fuzz: 0.0 } ),
+//        },
+//    ];
+//
+//    fn random_material() -> Arc<Material + Send> {
+//        let rand_vec = Vec3::new(random(), random(), random());
+//        let rval = rand::random::<f64>();
+//        if rval < 0.7 {
+//            Arc::new( materials::Lambertian{ albedo: rand_vec})
+//        } else if rval < 0.9 {
+//            Arc::new(materials::Metal {
+//                albedo: Vec3::new(0.5, 0.5, 0.5) + 0.5*rand_vec, 
+//                fuzz: 0.5*rand::random::<f64>(),
+//            })
+//        } else {
+//            Arc::new( materials::Dielectric{ ref_idx: 1.5 })
+//        }
+//    }
+//
+//    for _ in 0..500 {
+//        let r = 0.4 as f64;
+//        let Vec3(x, z, _) = random_in_unit_disk();
+//        let pos = 20.0 * Vec3(x, 0.0, z) + Vec3(0.0, r, 0.0);
+//        if spheres.iter().all(|s| (s.center - pos).length() >= s.radius + r) {
+//            spheres.push(Sphere {
+//                center: pos,
+//                radius: r,
+//                material: random_material(),
+//            });
+//        }
+//    }
+//
+//    let world: Vec<Box<Hitable>> = spheres.into_iter().map(|s| Box::new(s) as Box<Hitable>).collect();
+//    return world;
+//}
 
 fn main() -> std::io::Result<()>{
 
-	let rot = Quaternion::rot_from_vecs(Vec3(1.0, 1.0, 0.0), Vec3(0.0, 1.0, 0.0));
+	let rot = Quaternion::rot_from_vecs(Vec3(0.0, 0.0, -1.0), Vec3(0.0, 0.0, 1.0));
 	let irot = rot.inv();
 	println!("irot: {:?}", irot);
-	println!("irot.transform_vec({:?}): {:?}", Vec3(0.0, 1.0, 0.0).make_unit_vector(), rot.transform_vec(Vec3(0.0, 1.0, 0.0)));
+	println!("irot.transform_vec({:?}): {:?}", Vec3(0.0, 0.0, -1.0).make_unit_vector(), rot.transform_vec(Vec3(0.0, 0.0, -1.0)));
 
-    const nx: usize = 400;
-    const ny: usize = 200;
-    const nparts: usize = 32;
-    const ns_per_part: usize = 5;
+    const nx: usize = 300;
+    const ny: usize = 300;
+    const nparts: usize = 8;
+    const ns_per_part: usize = 8;
     
-    let camera;
-    {
-        let lookfrom = Vec3::new(0.0, 2.0, 20.0);
-        let lookat = Vec3::new(0.0, 1.0, 0.0);
-        let up = Vec3::new(0.0, 1.0, 0.0);
-        let fov = 20.0;
-        let aspect = (nx as f64)/(ny as f64);
-        let aperture = 0.3;
-        let focus_dist = (lookfrom-lookat).length();
-        camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
-    }
+    //let camera;
+    //{
+    //    let lookfrom = Vec3::new(0.0, 2.0, 20.0);
+    //    let lookat = Vec3::new(0.0, 1.0, 0.0);
+    //    let up = Vec3::new(0.0, 1.0, 0.0);
+    //    let fov = 20.0;
+    //    let aspect = (nx as f64)/(ny as f64);
+    //    let aperture = 0.3;
+    //    let focus_dist = (lookfrom-lookat).length();
+    //    camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
+    //}
     // Camera for dev_scene and random_scene
     //let camera;
     //{
@@ -196,21 +254,21 @@ fn main() -> std::io::Result<()>{
     //    camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
     //}
     
-    //let camera;
-    //{
-    //    let lookfrom = Vec3::new(278.0, 278.0, -800.0);
-    //    let lookat = Vec3::new(278.0, 278.0, 0.0);
-    //    let up = Vec3::new(0.0, 1.0, 0.0);
-    //    let fov = 40.0;
-    //    let aspect = (nx as f64)/(ny as f64);
-    //    let aperture = 0.0;
-    //    let focus_dist = 10.0;//(lookfrom-lookat).length();
-    //    camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
-    //}
+    let camera;
+    {
+        let lookfrom = Vec3::new(278.0, 278.0, -800.0);
+        let lookat = Vec3::new(278.0, 278.0, 0.0);
+        let up = Vec3::new(0.0, 1.0, 0.0);
+        let fov = 40.0;
+        let aspect = (nx as f64)/(ny as f64);
+        let aperture = 0.0;
+        let focus_dist = 10.0;//(lookfrom-lookat).length();
+        camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
+    }
     
     //let world = make_random_scene();
-    let world = make_dev_scene();
-    //let world = make_cornell();
+    //let world = make_dev_scene();
+    let world = make_cornell();
 
     //Initializing temporary buffers for threads...
     //let mut buffer_array: Vec<[f64; (nx*ny*4 as usize)]> = Vec::with_capacity(nparts);
