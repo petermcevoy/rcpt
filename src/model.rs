@@ -73,30 +73,36 @@ pub struct Plane {
 
 impl Hitable for Plane {
     fn hit(&self, r: &Ray) -> Option<Hit> {
-        let rot = Quaternion::from_axisangle(self.normal*self.rot_around_normal);
-        let irot = rot.inv();
+		let local_normal = Vec3(0.0, 0.0, 1.0);
+
+        let rot = Quaternion::rot_from_vecs(self.normal, local_normal);
         let local_ray = Ray{
-            origin: irot.transform_vec(r.origin - self.origin),
-            direction: irot.transform_vec(r.direction),
+            origin: rot.transform_vec(r.origin - self.origin),
+            direction: rot.transform_vec(r.direction),
         };
-
-        let normal = Vec3(1.0, 0.0, 0.0);
-        let denom = normal.dot(local_ray.direction);
-
+        
         // Check if we intersect the infinite plane.
-        if denom >= T_MIN {
-            let t = local_ray.origin.dot(normal) / denom;
-            return Some(Hit{
-                t,
-                p: r.point_at_paramter(t), 
-                u: 0.0, //TODO
-                v: 0.0, //TODO
-                normal: self.normal,
-                material: self.material.clone()
-            });
-        } else {
-            None
-        }
+        let denom = local_normal.dot(local_ray.direction);
+        if denom < 0.0 {
+            let t = (-1.0*local_ray.origin).dot(local_normal) / denom;
+
+			if t > 0.0 {
+                // Check if we are in bounds.
+                let local_p = local_ray.point_at_paramter(t);
+
+                if local_p.x().abs() < self.width/2.0 && local_p.y().abs() < self.height / 2.0 {
+                    return Some(Hit{
+                        t,
+                        p: r.point_at_paramter(t), 
+                        u: 0.0, //TODO
+                        v: 0.0, //TODO
+                        normal: self.normal,
+                        material: self.material.clone()
+                    });
+                }
+		    }
+		}
+		None
     }
 }
 

@@ -23,6 +23,9 @@ impl Quaternion {
 
     fn normalize(self) -> Quaternion {
         let n = self.norm();
+        if n < 0.0001 {
+            return Quaternion{w: 1.0, x: 0.0, y: 0.0, z: 0.0};
+        }
         Quaternion{
             w: self.w / n,
             x: self.x / n,
@@ -32,12 +35,11 @@ impl Quaternion {
     }
 
     pub fn inv(self) -> Quaternion {
-        return self.normalize().inv();
+        return self.normalize().conjugate();
     }
     
     pub fn transform_vec(self, v: Vec3) -> Vec3 {
-        let q = self;
-        let qn = q.normalize();
+        let qn = self.normalize();
         let u = Vec3(qn.x, qn.y, qn.z);
         let s = qn.w;
 
@@ -59,6 +61,15 @@ impl Quaternion {
             y: axis.1 * s,
             z: axis.2 * s
         }
+    }
+
+    // Find the rotation transform between two vectors. From v1 to v2.
+    // https://math.stackexchange.com/questions/2356649/how-to-find-the-quaternion-representing-the-rotation-between-two-3-d-vectors
+    pub fn rot_from_vecs(v1: Vec3, v2: Vec3) -> Quaternion {
+        let n = v1.cross(v2).make_unit_vector();
+        let angle = (v1.cross(v2).norm() / v1.dot(v2)).atan();
+
+        Quaternion::from_axisangle(n*angle)
     }
 }
 

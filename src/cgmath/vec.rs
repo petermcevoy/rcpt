@@ -45,7 +45,7 @@ impl Vec3 {
     }
     
     pub fn norm(&self) -> f64 {
-        return self.squared_length();
+        return self.length();
     }
 
     pub fn length(&self) -> f64 {
@@ -54,6 +54,10 @@ impl Vec3 {
 
     pub fn make_unit_vector(&self) -> Vec3 {
         let norm = self.length();
+        if norm < 0.0001 {
+            return Vec3(0.0, 0.0, 0.0);
+        }
+
         Vec3(
             self.0 / norm,
             self.1 / norm,

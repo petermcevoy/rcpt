@@ -23,7 +23,7 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
             let mut scattered = Ray::NONE;
             let mut attenuation = Vec3::ZEROS;
             let emitted = rec.material.emitted(rec.u, rec.v, &rec.p);
-            if depth < 50 && rec.material.scatter(&r, &rec, &mut attenuation, &mut scattered) {
+            if depth < 10 && rec.material.scatter(&r, &rec, &mut attenuation, &mut scattered) {
                 return emitted + attenuation*color(&scattered, world, depth+1);
             } 
             return emitted
@@ -82,26 +82,26 @@ fn make_dev_scene() -> Vec<Box<Hitable>> {
             radius: 1000.0,
             material: Arc::new( materials::Lambertian{ albedo: 0.8*Vec3::ONES } ),
         }),
-        Box::new(Sphere{
-            center: Vec3::new(2.5, 1.0, -2.0),
-            radius: 1.0,
-            material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
-        }),
-        //Box::new(Plane{
-        //    origin: Vec3::new(0.0, 1.0, 0.0),
-        //    normal: Vec3::new(1.0, 0.0, 0.0),
-        //    rot_around_normal: 0.0,
-        //    width: 0.0,
-        //    height: 0.0,
-        //    material: Arc::new( materials::DiffuseLight{ albedo: 1.0*Vec3::ONES } ),
-        //}),
-        //Sphere{
-        //    center: Vec3::new(0.0, 1.0, 0.0),
+        //Box::new(Sphere{
+        //    center: Vec3::new(2.5, 1.0, -2.0),
         //    radius: 1.0,
-        //    material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
-        //},
+        //    material: Arc::new( materials::DiffuseLight{ albedo: 3.0*Vec3::ONES } ),
+        //}),
+        Box::new(Plane{
+            origin: Vec3::new(0.0, 3.0, -1.0),
+            normal: Vec3::new(0.0, -1.0, 1.0),
+            rot_around_normal: 0.0,
+            width: 8.0,
+            height: 3.0,
+            material: Arc::new( materials::DiffuseLight{ albedo: 1.0*Vec3::ONES } ),
+        }),
+        Box::new(Sphere{
+            center: Vec3::new(0.0, 1.0, 0.0),
+            radius: 1.0,
+            material: Arc::new( materials::Lambertian{ albedo: 0.9*Vec3::ONES } ),
+        }),
+
     ];
-    //let world: Vec<Box<Hitable>> = spheres.into_iter().map(|s| Box::new(s) as Box<Hitable>).collect();
     return list;
 }
 fn make_random_scene() -> Vec<Box<Hitable>> {
@@ -162,16 +162,20 @@ fn make_random_scene() -> Vec<Box<Hitable>> {
 
 fn main() -> std::io::Result<()>{
 
-    let nx: u32 = 400;
-    let ny: u32 = 200;
-    let nparts: u32 = 12;
-    let ns_per_part: u32 = 8;
+	let rot = Quaternion::rot_from_vecs(Vec3(1.0, 1.0, 0.0), Vec3(0.0, 1.0, 0.0));
+	let irot = rot.inv();
+	println!("irot: {:?}", irot);
+	println!("irot.transform_vec({:?}): {:?}", Vec3(0.0, 1.0, 0.0).make_unit_vector(), rot.transform_vec(Vec3(0.0, 1.0, 0.0)));
+
+    const nx: usize = 400;
+    const ny: usize = 200;
+    const nparts: usize = 32;
+    const ns_per_part: usize = 5;
     
-    // Camera for dev_scene and random_scene
     let camera;
     {
-        let lookfrom = Vec3::new(13.0, 2.0, 3.0);
-        let lookat = Vec3::new(0.0, 0.0, 0.0);
+        let lookfrom = Vec3::new(0.0, 2.0, 20.0);
+        let lookat = Vec3::new(0.0, 1.0, 0.0);
         let up = Vec3::new(0.0, 1.0, 0.0);
         let fov = 20.0;
         let aspect = (nx as f64)/(ny as f64);
@@ -179,6 +183,18 @@ fn main() -> std::io::Result<()>{
         let focus_dist = (lookfrom-lookat).length();
         camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
     }
+    // Camera for dev_scene and random_scene
+    //let camera;
+    //{
+    //    let lookfrom = Vec3::new(13.0, 2.0, 3.0);
+    //    let lookat = Vec3::new(0.0, 0.0, 0.0);
+    //    let up = Vec3::new(0.0, 1.0, 0.0);
+    //    let fov = 20.0;
+    //    let aspect = (nx as f64)/(ny as f64);
+    //    let aperture = 0.3;
+    //    let focus_dist = (lookfrom-lookat).length();
+    //    camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
+    //}
     
     //let camera;
     //{
@@ -197,10 +213,12 @@ fn main() -> std::io::Result<()>{
     //let world = make_cornell();
 
     //Initializing temporary buffers for threads...
-    let mut buffer_array: Vec<Vec<f64>> = Vec::new();
-    for _ in 0..nparts {
-        buffer_array.push(vec![0.0 as f64; (nx*ny*4) as usize]);
-    }
+    //let mut buffer_array: Vec<[f64; (nx*ny*4 as usize)]> = Vec::with_capacity(nparts);
+    let mut buffer_array = vec![vec![0.0; (nx*ny*4 as usize)]; nparts];
+    //let mut buffer_array: Vec<Vec<f64>> = Vec::new();
+    //for _ in 0..nparts {
+    //    buffer_array.push([0.0 as f64; (nx*ny*4)]);
+    //}
 
     // Dispatch threads.
     buffer_array.par_iter_mut().for_each(|buffer| {
@@ -226,14 +244,19 @@ fn main() -> std::io::Result<()>{
     );
 
     println!("Averaging...");
+    let mut final_float_buffer = vec![0.0 as f64; (nx*ny*4) as usize];
     let mut final_buffer = vec![0 as u8; (nx*ny*4) as usize];
-    for i in 0..(nx*ny*4) {
-        let mut pixel_value: f64 = 0.0;
-        for buffer in buffer_array.iter() {
-            pixel_value += buffer[i as usize] / (nparts as f64);
+    for buffer in buffer_array.iter() {
+        for i in 0..buffer.len() {
+            let mut pixel_value = final_float_buffer[i] + buffer[i] / (nparts as f64);
+            if pixel_value > 1.0 { pixel_value = 1.0; }
+            final_float_buffer[i] = pixel_value;
         }
-        if pixel_value > 1.0 { pixel_value = 1.0; }
-        final_buffer[i as usize] = (255.99*pixel_value) as u8;
+    }
+
+    let iter = final_buffer.iter_mut().zip(final_float_buffer.iter());
+    for (final_pixel, float_pixel) in iter {
+        *final_pixel = (255.99*float_pixel) as u8;
     }
 
     match lodepng::encode32_file("out2.png", &final_buffer, nx as usize, ny as usize) {
