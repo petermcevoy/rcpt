@@ -71,7 +71,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: (343.0 - 213.0),
                 height: (332.0 - 227.0),
-                material: Some(Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } ) )
+                material: Some(Arc::new( materials::DiffuseLight{ albedo: 2.0*Vec3(15.0, 15.0, 15.0) } ) )
             }  
         ),
         Box::new( //White floor
@@ -106,7 +106,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
         ),
         Box::new( //Small box 
             Cuboid {
-                origin: Vec3(130.0 + 165.0/2.0, 165.0/2.0, 65.0 + 165.0/2.0),
+                origin: Vec3(185.0, 165.0/2.0, 169.0),
                 rot: Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)),
                 size: Vec3(165.0, 165.0, 165.0),
                 material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
@@ -114,7 +114,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
         ),
         Box::new( //Tall box 
             Cuboid {
-                origin: Vec3(265.0 + 165.0/2.0, 330.0/2.0, 295.0 + 165.0/2.0),
+                origin: Vec3(368.0, 330.0/2.0, 351.0),
                 rot: Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)),
                 size: Vec3(165.0, 330.0, 165.0),
                 material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
@@ -219,15 +219,9 @@ fn make_cornell() -> Vec<Box<Hitable>> {
 //}
 
 fn main() -> std::io::Result<()>{
-
-	let rot = Quaternion::rot_from_vecs(Vec3(0.0, 0.0, -1.0), Vec3(0.0, 0.0, 1.0));
-	let irot = rot.inv();
-	println!("irot: {:?}", irot);
-	println!("irot.transform_vec({:?}): {:?}", Vec3(0.0, 0.0, -1.0).make_unit_vector(), rot.transform_vec(Vec3(0.0, 0.0, -1.0)));
-
     const nx: usize = 300;
     const ny: usize = 300;
-    const nparts: usize = 8;
+    const nparts: usize = 24;
     const ns_per_part: usize = 8;
     
     //let camera;
