@@ -11,26 +11,61 @@ mod aabb;
 mod hitable;
 
 use cgmath::{Vec3, Quaternion};
-use ray::Ray;
+use ray::{Ray, PDF, CosinePDF, HitablePDF, MixturePDF};
 use hitable::{Hitable};
 use camera::{Camera, random_in_unit_disk};
 use materials::{Material};
 use model::*;
 
 use std::f64::consts::PI;
+const light_shape: Plane = Plane {
+    origin: Vec3(278.0, 554.0, 279.5),
+    normal: Vec3(0.0, -1.0, 0.0),
+    rot_around_normal: 0.0,
+    width: 130.0,
+    height: 105.0,
+    material: None
+};
 
 fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
     match world.hit(r) {
         Some(rec) => {
             let mut scattered = Ray::NONE;
-            let mut attenuation = Vec3::ZEROS;
+            //let mut attenuation = Vec3::ZEROS;
+            let mut pdf_val = 0.0;
+            let mut albedo = Vec3::ZEROS;
             let emitted;
             match rec.material.as_ref() {
                 Some(mat) => {
-                    emitted = mat.emitted(rec.u, rec.v, &rec.p);
-                    if depth < 10 && mat.scatter(&r, &rec, &mut attenuation, &mut scattered) {
-                        return emitted + attenuation*color(&scattered, world, depth+1);
-                    } 
+                    emitted = mat.emitted(&r, &rec, rec.u, rec.v, rec.p);
+                    if depth < 50 && mat.scatter(&r, &rec, &mut albedo, &mut scattered, &mut pdf_val) {
+                        let hitable_pdf = HitablePDF::new(&light_shape, rec.p);
+                        let cosine_pdf = CosinePDF::new(rec.normal);
+                        //let p = CosinePDF::new(rec.normal);
+                        let p = MixturePDF::new(Box::new(hitable_pdf), Box::new(cosine_pdf));
+                        //let p = HitablePDF::new(&light_shape, rec.p);
+                        //let mut to_light = p.generate();
+                        //scattered = Ray{origin: rec.p, direction: to_light.make_unit_vector()};
+                        
+                        //let distance_squared = to_light.squared_length();
+                        //to_light = to_light.make_unit_vector();
+                        //let light_area = light_shape.width*light_shape.height;
+                        //let cosine = to_light.dot(light_shape.normal).abs();
+                        //pdf_val = distance_squared / (cosine * light_area) + 1e-5;
+                        //
+
+
+                        scattered = Ray{origin: rec.p, direction: (p.generate()).make_unit_vector()};
+                        pdf_val = p.value(scattered.direction);
+                        if pdf_val == 0.0 { return emitted; }
+
+
+                        let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
+                        //let scattering_pdf_val = 1.0;
+                    
+                        let val = emitted + albedo*scattering_pdf_val*color(&scattered, world, depth+1) / (pdf_val);
+                        return val;
+                    }
                 }, 
                 None => {emitted = Vec3::ERROR;}
             }
@@ -51,7 +86,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: 555.0,
                 height: 555.0,
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.12, 0.45, 0.15) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.12, 0.45, 0.15) } ) )
             }  
         ),
         Box::new( //Red
@@ -61,17 +96,17 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: 555.0,
                 height: 555.0,
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.65, 0.05, 0.05) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.65, 0.05, 0.05) } ) )
             }  
         ),
         Box::new( //Light
             Plane {
-                origin: Vec3(-278.0, 547.8, 279.5),
+                origin: Vec3(278.0, 554.0, 279.5),
                 normal: Vec3(0.0, -1.0, 0.0),
                 rot_around_normal: 0.0,
                 width: 130.0,
                 height: 105.0,
-                material: Some(Arc::new( materials::DiffuseLight{ albedo: Vec3(15.0, 15.0, 15.0) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3(15.0, 15.0, 15.0), albedo: Vec3::ZEROS } ) )
             }  
         ),
         Box::new( //White floor
@@ -81,7 +116,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: 555.0,
                 height: 555.0,
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
         Box::new( //White ceiling
@@ -91,7 +126,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: 555.0,
                 height: 555.0,
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
         Box::new( //White wall
@@ -101,7 +136,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 rot_around_normal: 0.0,
                 width: 555.0,
                 height: 555.0,
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
         Box::new( //Small box 
@@ -109,7 +144,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 origin: Vec3(185.0, 165.0/2.0, 169.0),
                 rot: Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)),
                 size: Vec3(165.0, 165.0, 165.0),
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
         Box::new( //Tall box 
@@ -117,7 +152,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 origin: Vec3(368.0, 330.0/2.0, 351.0),
                 rot: Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)),
                 size: Vec3(165.0, 330.0, 165.0),
-                material: Some(Arc::new( materials::Lambertian{ albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
     ];
@@ -219,10 +254,10 @@ fn make_cornell() -> Vec<Box<Hitable>> {
 //}
 
 fn main() -> std::io::Result<()>{
-    const nx: usize = 300;
-    const ny: usize = 300;
-    const nparts: usize = 24;
-    const ns_per_part: usize = 8;
+    const nx: usize = 250;
+    const ny: usize = 250;
+    const nparts: usize = 31;
+    const ns_per_part: usize = 32;
     
     //let camera;
     //{
@@ -250,8 +285,8 @@ fn main() -> std::io::Result<()>{
     
     let camera;
     {
-        let lookfrom = Vec3::new(-278.0, 278.0, -800.0);
-        let lookat = Vec3::new(-278.0, 278.0, 0.0);
+        let lookfrom = Vec3::new(278.0, 278.0, -800.0);
+        let lookat = Vec3::new(278.0, 278.0, 0.0);
         let up = Vec3::new(0.0, 1.0, 0.0);
         let fov = 40.0;
         let aspect = (nx as f64)/(ny as f64);
@@ -265,12 +300,7 @@ fn main() -> std::io::Result<()>{
     let world = make_cornell();
 
     //Initializing temporary buffers for threads...
-    //let mut buffer_array: Vec<[f64; (nx*ny*4 as usize)]> = Vec::with_capacity(nparts);
     let mut buffer_array = vec![vec![0.0; (nx*ny*4 as usize)]; nparts];
-    //let mut buffer_array: Vec<Vec<f64>> = Vec::new();
-    //for _ in 0..nparts {
-    //    buffer_array.push([0.0 as f64; (nx*ny*4)]);
-    //}
 
     // Dispatch threads.
     buffer_array.par_iter_mut().for_each(|buffer| {

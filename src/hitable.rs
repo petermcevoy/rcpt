@@ -19,7 +19,8 @@ pub struct Hit {
 
 pub trait Hitable: Sync + Send {
     fn hit(&self, r: &Ray) -> Option<Hit>;
-    //fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB>;
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> f64 { return 0.0; }
+    fn random(&self, origin: Vec3) -> Vec3 { return Vec3(1.0, 0.0, 0.0); }
 }
 
 pub type HitList = Vec<Box<Hitable>>;

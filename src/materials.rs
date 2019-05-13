@@ -1,83 +1,71 @@
 use crate::Vec3;
-use crate::ray::{Ray, random_in_unit_sphere, schlick, reflect, refract};
+use crate::ray::{Ray, random_in_unit_sphere, random_cosine_direction, UVW, schlick, reflect, refract};
 use crate::hitable::Hit;
 
+use std::f64::consts::PI;
+
 pub trait Material: Sync {
-    fn scatter(&self, r_in: &Ray, hit_recrod: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool;
-    fn emitted(&self, u: f64, v: f64, p: &Vec3) -> Vec3 {
-        Vec3::ZEROS
+    fn scatter(&self, r_in: &Ray, rec: &Hit, alb: &mut Vec3, scattered: &mut Ray, pdf: &mut f64) -> bool;
+    fn emitted(&self, r_in: &Ray, rec: &Hit, u: f64, v: f64, p: Vec3) -> Vec3 {
+        if rec.normal.dot(r_in.direction) < 0.0 { 
+            return self.emit(); 
+        }
+        return Vec3::ZEROS;
     }
+    fn emit(&self) -> Vec3;
+    fn scattering_pdf(&self, r_in: &Ray, rec: &Hit, scattered: &Ray) -> f64;
 }
 
-pub struct Lambertian { pub albedo: Vec3 }
+pub struct Lambertian { pub albedo: Vec3, pub emit: Vec3 }
 impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
-        let target = rec.p + rec.normal + random_in_unit_sphere();
-        *scattered = Ray::new(rec.p, target - rec.p);
-        *attenuation = self.albedo;
+    fn scatter(&self, r_in: &Ray, rec: &Hit, alb: &mut Vec3, scattered: &mut Ray, pdf: &mut f64) -> bool {
+        let uvw = UVW::onb_from_w(rec.normal);
+        let direction = uvw.local(random_cosine_direction());
+        *scattered = Ray::new(rec.p, direction);
+        *alb = self.albedo;
+        *pdf = (uvw.w).dot(scattered.direction) / PI;
         return true;
+
+        //let mut direction;
+        //loop {
+        //    direction = random_in_unit_sphere();
+        //    if direction.dot(rec.normal) > 0.0 {break;}
+        //}
+
+        ////let target = rec.p + rec.normal + random_in_unit_sphere();
+        ////*scattered = Ray{origin: rec.p, direction: (target - rec.p).make_unit_vector()};
+        //*scattered = Ray{origin: rec.p, direction: direction.make_unit_vector()};
+        //*alb = self.albedo;
+        ////*pdf = (rec.normal.make_unit_vector()).dot(scattered.direction.make_unit_vector()) / PI;
+        //*pdf = ((rec.normal.make_unit_vector()).dot(scattered.direction.make_unit_vector()) * 0.5)/PI;
+        //return true;
+
+
+        //*scattered = Ray::new(rec.p, direction.make_unit_vector());
+        //*alb = self.albedo;
+        //*pdf = (uvw.w).dot(scattered.direction) / PI;
+        //return true;
     }
-}
-
-pub struct DiffuseLight { pub albedo: Vec3 }
-impl Material for DiffuseLight {
-    fn scatter(&self, _r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
-        return false;
+    fn scattering_pdf(&self, r_in: &Ray, rec: &Hit, scattered: &Ray) -> f64 {
+        let mut cosine = (rec.normal.make_unit_vector()).dot(scattered.direction.make_unit_vector());
+        if cosine < 0.0 {cosine = 0.0}
+        return cosine / PI;
     }
-    fn emitted(&self, u: f64, v: f64, p: &Vec3) -> Vec3 {
-        return self.albedo;
-    }
+    fn emit(&self) -> Vec3 {self.emit}
 }
 
-pub struct Metal {
-    pub albedo: Vec3,
-    pub fuzz: f64
-}
-impl Material for Metal {
-    fn scatter(&self, r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
-        let reflected = reflect(r_in.direction.make_unit_vector(), rec.normal);
-        *scattered = Ray::new(rec.p, reflected + self.fuzz*random_in_unit_sphere());
-        *attenuation = self.albedo;
-        return scattered.direction.dot(rec.normal) > 0.0;
-    }
-}
-
-pub struct Dielectric {
-    pub ref_idx: f64
-}
-impl Material for Dielectric {
-    fn scatter(&self, r_in: &Ray, rec: &Hit, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
-        let reflected = reflect(r_in.direction, rec.normal);
-
-        *attenuation = Vec3::ONES;
-
-        let outward_normal;
-        let ni_over_nt;
-        let cosine;
-        if r_in.direction.dot(rec.normal) > 0.0 {
-            outward_normal = -1.0*rec.normal;
-            ni_over_nt = self.ref_idx;
-            cosine = self.ref_idx * r_in.direction.dot(rec.normal) / r_in.direction.length();
-        } else {
-            outward_normal = rec.normal;
-            ni_over_nt = 1.0 / self.ref_idx;
-            cosine = -1.0*r_in.direction.dot(rec.normal) / r_in.direction.length();
-        }
-
-        match refract(r_in.direction, outward_normal, ni_over_nt) {
-            Some(refracted) => {
-                let reflect_prob = schlick(cosine, self.ref_idx);
-                if rand::random::<f64>() < reflect_prob {
-                    *scattered = Ray::new(rec.p, reflected);
-                } else {
-                    *scattered = Ray::new(rec.p, refracted);
-                }
-            },
-            None => {
-                *scattered = Ray::new(rec.p, reflected);
-            }
-        }
-
-        return true;
-    }
-}
+//pub struct DiffuseLight { pub albedo: Vec3 }
+//impl Material for DiffuseLight {
+//    fn scatter(&self, r_in: &Ray, hit_recrod: &Hit, alb: &mut Vec3, scattered: &mut Ray, pdf: &mut f64) -> bool {
+//        return false;
+//    }
+//    fn emitted(&self, r_in: &Ray, rec: &Hit, u: f64, v: f64, p: Vec3) -> Vec3 {
+//        if rec.normal.dot(r_in.direction) < 0.0 {
+//            return self.albedo;
+//        }
+//        return Vec3::ZEROS;
+//    }
+//    fn scattering_pdf(&self, r_in: &Ray, rec: &Hit, scattered: &Ray) -> f64 {
+//        return 1.0 / PI;
+//    }
+//}
