@@ -153,22 +153,22 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
-        Box::new( //Small box 
-            Cuboid {
-                origin: Vec3(185.0, 165.0/2.0, 169.0),
-                rot: Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)),
-                size: Vec3(165.0, 165.0, 165.0),
-                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
-            }  
+        Box::new( //Small box
+            Cuboid::new()
+                .origin(Vec3(185.0, 165.0/2.0, 169.0))
+                .size(Vec3(165.0, 165.0, 165.0))
+                .rot(Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)))
+                .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                .build()
         ),
-        Box::new( //Tall box 
-            Cuboid {
-                origin: Vec3(368.0, 330.0/2.0, 351.0),
-                rot: Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)),
-                size: Vec3(165.0, 330.0, 165.0),
-                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
-            }  
-        ),
+        Box::new( //Tall box
+            Cuboid::new()
+                .origin(Vec3(368.0, 330.0/2.0, 351.0))
+                .size(Vec3(165.0, 330.0, 165.0))
+                .rot(Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)))
+                .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                .build()
+        )
     ];
     return scene;
 }
