@@ -212,60 +212,60 @@ pub struct Cuboid {
 //}
 impl Cuboid {
     fn local_plane_hit(&self, local_ray: &Ray) -> Option<Hit> {
-        let planes = vec![
+        let planes: Vec<Box<Hitable>> = vec![
             Box::new(Plane{ // FRONT
                 origin: Vec3(0.0, 0.0, self.size.z()/2.0),
                 normal: Vec3(0.0, 0.0, 1.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.x(),
+                height: self.size.y(),
                 material: None
             }),
             Box::new(Plane{ // Back
                 origin: Vec3(0.0, 0.0, -self.size.z()/2.0),
                 normal: Vec3(0.0, 0.0, -1.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.x(),
+                height: self.size.y(),
                 material: None
             }),
             Box::new(Plane{ // Left side
                 origin: Vec3(-self.size.x()/2.0, 0.0, 0.0),
                 normal: Vec3(-1.0, 0.0, 0.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.z(),
+                height: self.size.y(),
                 material: None
             }),
             Box::new(Plane{ // Right side
                 origin: Vec3(self.size.x()/2.0, 0.0, 0.0),
                 normal: Vec3(1.0, 0.0, 0.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.z(),
+                height: self.size.y(),
                 material: None
             }),
             Box::new(Plane{ // Top
                 origin: Vec3(0.0, self.size.y()/2.0, 0.0),
                 normal: Vec3(0.0, 1.0, 0.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.x(),
+                height: self.size.z(),
                 material: None
             }),
             Box::new( Plane{ // Bottom
                 origin: Vec3(0.0, -self.size.y()/2.0, 0.0),
                 normal: Vec3(0.0, -1.0, 0.0),
                 rot_around_normal: 0.0,
-                width: 1.0,
-                height: 1.0,
+                width: self.size.x(),
+                height: self.size.z(),
                 material: None
             }),
         ];
 
-        //let planes_boxvec: Vec<Box<Hitable>> = planes.iter().map(|p| Box::new(p.clone()) as Box<Hitable>).collect();
+        //let planes_boxvec: Vec<Box<Hitable>> = planes.iter().map(|p| p as Box<Hitable>).collect();
 
-        return planes_boxvec.hit(local_ray);
+        return planes.hit(local_ray);
     }
 }
 

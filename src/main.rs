@@ -270,8 +270,8 @@ fn make_cornell() -> Vec<Box<Hitable>> {
 fn main() -> std::io::Result<()>{
     const nx: usize = 500;
     const ny: usize = 500;
-    const nparts: usize = 30;
-    const ns_per_part: usize = 2;
+    const nparts: usize = 11;
+    const ns_per_part: usize = 8;
     
     //let camera;
     //{
