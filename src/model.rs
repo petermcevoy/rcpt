@@ -94,14 +94,14 @@ impl Hitable for Plane {
         
         // Check if we intersect the infinite plane.
         let denom = local_normal.dot(local_ray.direction);
-        if denom < 0.0 {
+        //if denom < 0.0 {
             let t = (-1.0*local_ray.origin).dot(local_normal) / denom;
 
 			if t > 0.0 {
                 // Check if we are in bounds.
                 let local_p = local_ray.point_at_paramter(t);
 
-                if local_p.x().abs() < self.width/2.0 && local_p.y().abs() < self.height / 2.0 {
+                if (local_p.x()).abs() < self.width/2.0 && (local_p.y()).abs() < self.height/2.0 {
                     return Some(Hit{
                         t,
                         p: r.point_at_paramter(t), 
@@ -112,7 +112,7 @@ impl Hitable for Plane {
                     });
                 }
 		    }
-		}
+		//}
 		None
     }
 
@@ -123,8 +123,9 @@ impl Hitable for Plane {
                 //let distance_squared = rec.t * rec.t * v.squared_length();
                 //let distance_squared = v.squared_length();
                 let distance_squared = rec.t * rec.t * v.squared_length();
-                let cosine = ((v.make_unit_vector()).dot(rec.normal)).abs();
+                let cosine = (v.dot(rec.normal)).abs() / v.length();
                 return distance_squared / (cosine * area);
+                //if cosine != 0.0 { distance_squared / (cosine * area) } else { 0.0 }
             },
             None => {return 0.0;},
         }
@@ -136,10 +137,12 @@ impl Hitable for Plane {
             0.0
         );
 		
-        let local_normal = Vec3(0.0, 0.0, 1.0);
+        let local_normal = Vec3::new(0.0, 0.0, 1.0);
         let rot = Quaternion::rot_from_vecs(local_normal, self.normal);
-
-        let global_random_point = rot.transform_vec(local_random_point) + self.origin;
+        let mut tmp = rot.transform_vec(local_random_point);
+        tmp.0 = -1.0 * tmp.0;
+        tmp.1 = -1.0 * tmp.1;
+        let global_random_point = tmp + self.origin;
 
         return global_random_point - ray_origin;
     }
@@ -152,100 +155,132 @@ pub struct Cuboid {
     pub material: Option<Arc<Material + Send>>
 }
 
+//impl Cuboid {
+//    //const PLANES: Vec<Plane> = vec![
+//    //    Plane{ // FRONT
+//    //        origin: Vec3(0.0, 0.0, 0.5),
+//    //        normal: Vec3(0.0, 0.0, 1.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //    Plane{ // Back
+//    //        origin: Vec3(0.0, 0.0, -0.5),
+//    //        normal: Vec3(0.0, 0.0, -1.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //    Plane{ // Left side
+//    //        origin: Vec3(-0.5, 0.0, 0),
+//    //        normal: Vec3(-1.0, 0.0, 0.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //    Plane{ // Right side
+//    //        origin: Vec3(0.5, 0.0, 0),
+//    //        normal: Vec3(1.0, 0.0, 0.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //    Plane{ // Top
+//    //        origin: Vec3(0.0, 0.5, 0),
+//    //        normal: Vec3(0.0, 1.0, 0.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //    Plane{ // Bottom
+//    //        origin: Vec3(0.0, -0.5, 0),
+//    //        normal: Vec3(0.0, -1.0, 0.0),
+//    //        rot_around_normal: 0.0,
+//    //        width: 1.0,
+//    //        height: 1.0,
+//    //        material: None
+//    //    },
+//    //];
+//
+//    fn local_plane_hit(&self, local_ray: &Ray, return_plane: Option<&mut Plane>) -> Option<Hit> {
+//    }
+//}
 impl Cuboid {
-    fn local_plane_hit(&self, local_ray: &Ray, return_plane: Option<&mut Plane>) -> Option<Hit> {
-        let mut temp_plane = Plane::new();
-		let mut temp_plane_hit;
+    fn local_plane_hit(&self, local_ray: &Ray) -> Option<Hit> {
+        let planes = vec![
+            Box::new(Plane{ // FRONT
+                origin: Vec3(0.0, 0.0, self.size.z()/2.0),
+                normal: Vec3(0.0, 0.0, 1.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+            Box::new(Plane{ // Back
+                origin: Vec3(0.0, 0.0, -self.size.z()/2.0),
+                normal: Vec3(0.0, 0.0, -1.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+            Box::new(Plane{ // Left side
+                origin: Vec3(-self.size.x()/2.0, 0.0, 0.0),
+                normal: Vec3(-1.0, 0.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+            Box::new(Plane{ // Right side
+                origin: Vec3(self.size.x()/2.0, 0.0, 0.0),
+                normal: Vec3(1.0, 0.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+            Box::new(Plane{ // Top
+                origin: Vec3(0.0, self.size.y()/2.0, 0.0),
+                normal: Vec3(0.0, 1.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+            Box::new( Plane{ // Bottom
+                origin: Vec3(0.0, -self.size.y()/2.0, 0.0),
+                normal: Vec3(0.0, -1.0, 0.0),
+                rot_around_normal: 0.0,
+                width: 1.0,
+                height: 1.0,
+                material: None
+            }),
+        ];
 
-        fn assign_plane_if_some(plane: Plane, plane_ref_option: Option<&mut Plane>) {
-            if let Some(plane_ref) = plane_ref_option {
-                *plane_ref = plane;
-            }
-        }
+        //let planes_boxvec: Vec<Box<Hitable>> = planes.iter().map(|p| Box::new(p.clone()) as Box<Hitable>).collect();
 
-        // Hit front?
-        temp_plane.origin = Vec3(0.0, 0.0, self.size.z()/2.0);
-        temp_plane.normal = Vec3(0.0, 0.0, 1.0);
-        temp_plane.width = self.size.x();
-        temp_plane.height = self.size.y();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-        
-        // Hit back?
-        temp_plane.origin = Vec3(0.0, 0.0, -self.size.z()/2.0);
-        temp_plane.normal = Vec3(0.0, 0.0, -1.0);
-        temp_plane.width = self.size.x();
-        temp_plane.height = self.size.y();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-
-        // Hit left side?
-        temp_plane.origin = Vec3(-self.size.x()/2.0, 0.0, 0.0);
-        temp_plane.normal = Vec3(-1.0, 0.0, 0.0);
-        temp_plane.width = self.size.z();
-        temp_plane.height = self.size.y();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-
-        // Hit right side?
-        temp_plane.origin = Vec3(self.size.x()/2.0, 0.0, 0.0);
-        temp_plane.normal = Vec3(1.0, 0.0, 0.0);
-        temp_plane.width = self.size.z();
-        temp_plane.height = self.size.y();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-        
-        // Hit top?
-        temp_plane.origin = Vec3(0.0, self.size.y()/2.0, 0.0);
-        temp_plane.normal = Vec3(0.0, 1.0, 0.0);
-        temp_plane.width = self.size.x();
-        temp_plane.height = self.size.z();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-        
-        // Hit bottom?
-        temp_plane.origin = Vec3(0.0, -self.size.y()/2.0, 0.0);
-        temp_plane.normal = Vec3(0.0, -1.0, 0.0);
-        temp_plane.width = self.size.x();
-        temp_plane.height = self.size.z();
-        temp_plane_hit = temp_plane.hit(&local_ray);
-        if temp_plane_hit.is_some() {
-            assign_plane_if_some(temp_plane, return_plane);
-            return temp_plane_hit;
-        }
-
-        return None;
+        return planes_boxvec.hit(local_ray);
     }
 }
 
 impl Hitable for Cuboid {
     fn hit(&self, r: &Ray) -> Option<Hit> {
-        // The local cuboid consits of 4 planes.
-        // It has origin in (0,0,0) 
-        
+        //The local cuboid consits of 4 planes.
+        //It has origin in (0,0,0) and size (1,1,1).
         let irot = self.rot.inv();
-        let local_ray = Ray{
+        let mut local_ray = Ray{
             origin: irot.transform_vec(r.origin - self.origin),
             direction: irot.transform_vec(r.direction),
         };
-
+        
         // Get the plane that the ray intersects with.
-        match self.local_plane_hit(&local_ray, None) {
+        match self.local_plane_hit(&local_ray) {
             Some(mut rec) => {
                 rec.material = self.material.clone();
                 rec.p = r.point_at_paramter(rec.t);
@@ -254,4 +289,24 @@ impl Hitable for Cuboid {
             None => {return None;}
         }
     }
+    //fn hit(&self, r: &Ray) -> Option<Hit> {
+    //    // The local cuboid consits of 4 planes.
+    //    // It has origin in (0,0,0) 
+    //    
+    //    let irot = self.rot.inv();
+    //    let local_ray = Ray{
+    //        origin: irot.transform_vec(r.origin - self.origin),
+    //        direction: irot.transform_vec(r.direction),
+    //    };
+
+    //    // Get the plane that the ray intersects with.
+    //    match self.local_plane_hit(&local_ray, None) {
+    //        Some(mut rec) => {
+    //            rec.material = self.material.clone();
+    //            rec.p = r.point_at_paramter(rec.t);
+    //            return Some(rec);
+    //        },
+    //        None => {return None;}
+    //    }
+    //}
 }

@@ -55,8 +55,13 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
                         //
 
 
-                        scattered = Ray{origin: rec.p, direction: (p.generate()).make_unit_vector()};
+                        scattered = Ray{origin: rec.p, direction: p.generate()};
                         pdf_val = p.value(scattered.direction);
+                        //println!("{:?}", pdf_val);
+                        //if pdf_val == 0.0 { return Vec3::ERROR; }
+                        //return pdf_val/100.0 * Vec3::ONES;
+                        
+                        
                         if pdf_val == 0.0 { return emitted; }
 
 
@@ -103,6 +108,8 @@ fn make_cornell() -> Vec<Box<Hitable>> {
             Plane {
                 origin: Vec3(278.0, 554.0, 279.5),
                 normal: Vec3(0.0, -1.0, 0.0),
+                //origin: Vec3(278.0, 520.0, 279.5),
+                //normal: Vec3(0.5, 1.0, 0.0),
                 rot_around_normal: 0.0,
                 width: 130.0,
                 height: 105.0,
@@ -119,6 +126,13 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
+        //Box::new( //White ceiling
+        //    Sphere {
+        //        center: Vec3(555.0/2.0, 555.0+10000.0, 555.0/2.0),
+        //        radius: 10000.0,
+        //        material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+        //    }  
+        //),
         Box::new( //White ceiling
             Plane {
                 origin: Vec3(555.0/2.0, 555.0, 555.0/2.0),
@@ -254,10 +268,10 @@ fn make_cornell() -> Vec<Box<Hitable>> {
 //}
 
 fn main() -> std::io::Result<()>{
-    const nx: usize = 250;
-    const ny: usize = 250;
-    const nparts: usize = 31;
-    const ns_per_part: usize = 32;
+    const nx: usize = 500;
+    const ny: usize = 500;
+    const nparts: usize = 30;
+    const ns_per_part: usize = 2;
     
     //let camera;
     //{
