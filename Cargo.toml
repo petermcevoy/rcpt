@@ -8,3 +8,7 @@ edition = "2018"
 lodepng = "*"
 rand = "*"
 rayon = "*"
+nalgebra = "0.18.0"
+
+[features]
+real_is_double = []

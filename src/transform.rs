@@ -2,6 +2,7 @@ use crate::{
     Vec3,
     Quaternion
 };
+use nalgebra as na;
 
 pub struct Transform {
     pub translation: Vec3,
