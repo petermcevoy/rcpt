@@ -29,12 +29,9 @@ const light_shape: Plane = Plane {
     material: None
 };
 
-fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
+fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
     match world.hit(r) {
         Some(rec) => {
-            //let mut scattered = Ray::NONE;
-            //let mut pdf_val = 0.0;
-            //let mut albedo = Vec3::ZEROS;
             let emitted;
             match rec.material.as_ref() {
                 Some(mat) => {
@@ -42,9 +39,9 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
                     if depth < 50 {
                         if let Some(srec) = mat.scatter(&r, &rec) {
                             if let Some(specular_ray) = srec.specular_ray {
-                                return srec.attenuation * color(&specular_ray, world, depth+1);
+                                return srec.attenuation * color(&specular_ray, world, light, depth+1);
                             } else {
-                                let hitable_pdf = HitablePDF::new(&light_shape, rec.p);
+                                let hitable_pdf = HitablePDF::new(light, rec.p);
                                 let mat_pdf = srec.pdf.unwrap();
                                 let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
 
@@ -53,7 +50,7 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
                                 if pdf_val == 0.0 { return emitted; }
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
-                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, depth+1) / (pdf_val);
+                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1) / (pdf_val + 1e-5);
                                 return val;
                             }
                         }
@@ -69,10 +66,10 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
     }
 }
 
-const NX: usize = 500;
-const NY: usize = 500;
+const NX: usize = 250;
+const NY: usize = 250;
 const NPARTS: usize = 31;
-const NS_PER_PART: usize = 1;
+const NS_PER_PART: usize = 6;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
@@ -86,26 +83,25 @@ fn main() -> std::io::Result<()>{
 
     // Dispatch threads.
     buffer_array.par_iter_mut().for_each(|buffer| {
-            for y in 0..NY {
-                for x in 0..NX {
-                    let mut col = Vec3::ZEROS;
-                    for _s in 0..NS_PER_PART {
-                        let u = (x as f64 + rand::random::<f64>()) / (NX as f64);
-                        let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
-                        let r = camera.get_ray(u, v);
-                        
-                        col += color(&r, &world, 0);
-                    }
-                    col /= NS_PER_PART as f64;
-                    col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
-                    buffer[(((NY-1-y)*NX + x)*4 + 0) as usize] = col.r();
-                    buffer[(((NY-1-y)*NX + x)*4 + 1) as usize] = col.g();
-                    buffer[(((NY-1-y)*NX + x)*4 + 2) as usize] = col.b();
-                    buffer[(((NY-1-y)*NX + x)*4 + 3) as usize] = 1.0;
+        for y in 0..NY {
+            for x in 0..NX {
+                let mut col = Vec3::ZEROS;
+                for _s in 0..NS_PER_PART {
+                    let u = (x as f64 + rand::random::<f64>()) / (NX as f64);
+                    let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
+                    let r = camera.get_ray(u, v);
+                    
+                    col += color(&r, &world, world[6].as_ref(), 0);
                 }
+                col /= NS_PER_PART as f64;
+                col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
+                buffer[(((NY-1-y)*NX + x)*4 + 0) as usize] = col.r();
+                buffer[(((NY-1-y)*NX + x)*4 + 1) as usize] = col.g();
+                buffer[(((NY-1-y)*NX + x)*4 + 2) as usize] = col.b();
+                buffer[(((NY-1-y)*NX + x)*4 + 3) as usize] = 1.0;
             }
         }
-    );
+    });
 
     println!("Averaging...");
     let mut final_float_buffer = vec![0.0 as f64; (NX*NY*4) as usize];

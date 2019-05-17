@@ -43,6 +43,17 @@ pub fn random_cosine_direction() -> Vec3 {
     Vec3(x, y, z)
 }
 
+pub fn random_to_sphere(radius: f64, distance_squared: f64) -> Vec3 {
+    let r1 = rand::random::<f64>();
+    let r2 = rand::random::<f64>();
+    //let z = 1.0 + r2*((1.0 - radius*radius/(distance_squared + 1e-5)).sqrt() - 1.0);
+    let z = 1.0 + r2*((1.0 - radius*radius/(distance_squared)).sqrt() - 1.0);
+    let phi = 2.0*PI*r1;
+    let x = phi.cos() * (1.0 - z*z).sqrt();
+    let y = phi.sin() * (1.0 - z*z).sqrt();
+    Vec3(x, y, z)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct UVW { pub u: Vec3, pub v: Vec3, pub w: Vec3 }
 impl UVW {
@@ -110,10 +121,7 @@ impl PDF for CosinePDF {
     fn generate(&self) -> Vec3 {
         let cr = random_cosine_direction();
         let cval = cr.make_unit_vector();
-        let val = self.uvw.local(cval);
-        //println!("cr: {:?}\t cval {:?}\t val: {:?}", cr.length(), cval.length(), val.length());
-        return val;
-        //return self.to_world_rot.transform_vec(random_cosine_direction());
+        self.uvw.local(cval)
     }
 }
 
@@ -145,7 +153,7 @@ impl <'a> PDF for MixturePDF<'a> {
     }
 
     fn generate(&self) -> Vec3 {
-        if rand::random::<f64>() < 0.5 {
+        if rand::random::<bool>() {
             return self.pdfs[0].generate();
         } else {
             return self.pdfs[1].generate();

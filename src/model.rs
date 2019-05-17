@@ -5,6 +5,9 @@ use crate::{
     hitable::{Hit, Hitable, T_MIN, T_MAX},
     materials::Material,
     aabb::AABB,
+    ray::random_to_sphere,
+    PI,
+    ray::UVW
 };
 
 use std::sync::Arc;
@@ -53,13 +56,26 @@ impl Hitable for Sphere {
         None
     }
 
-    //fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
-    //    let bbox = AABB::new(
-    //            self.center - self.radius*Vec3::ONES, 
-    //            self.center + self.radius*Vec3::ONES
-    //        );
-    //    Some(bbox)
-    //}
+    fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> f64 {
+        match self.hit(&Ray::new(ray_origin, v)) {
+            Some(rec) => {
+                let cos_theta_max = (1.0 - self.radius * self.radius / (self.center - ray_origin).squared_length()).sqrt();
+                let solid_angle = 2.0*PI*(1.0 - cos_theta_max);
+
+                1.0 / solid_angle
+            },
+            None => {return 0.0;},
+        }
+    }
+    fn random(&self, ray_origin: Vec3) -> Vec3 {
+        let direction = self.center - ray_origin;
+        let distance_squared = direction.squared_length();
+
+        let onb = UVW::onb_from_w(direction);
+        let tmp = random_to_sphere(self.radius, distance_squared);
+        //println!("{:?}", distance_squared);
+        onb.local(tmp)
+    }
 }
 
 pub struct Plane {
@@ -94,26 +110,24 @@ impl Hitable for Plane {
         
         // Check if we intersect the infinite plane.
         let denom = local_normal.dot(local_ray.direction);
-        //if denom < 0.0 {
-            let t = (-1.0*local_ray.origin).dot(local_normal) / denom;
+        let t = (-1.0*local_ray.origin).dot(local_normal) / denom;
 
-			if t > 1e-5 {
-                // Check if we are in bounds.
-                let local_p = local_ray.point_at_paramter(t);
+        if t > 1e-5 {
+            // Check if we are in bounds.
+            let local_p = local_ray.point_at_paramter(t);
 
-                if (local_p.x()).abs() < self.width/2.0 && (local_p.y()).abs() < self.height/2.0 {
-                    return Some(Hit{
-                        t,
-                        p: r.point_at_paramter(t), 
-                        u: 0.0, //TODO
-                        v: 0.0, //TODO
-                        normal: self.normal,
-                        material: self.material.clone()
-                    });
-                }
-		    }
-		//}
-		None
+            if (local_p.x()).abs() < self.width/2.0 && (local_p.y()).abs() < self.height/2.0 {
+                return Some(Hit{
+                    t,
+                    p: r.point_at_paramter(t), 
+                    u: 0.0, //TODO
+                    v: 0.0, //TODO
+                    normal: self.normal,
+                    material: self.material.clone()
+                });
+            }
+        }
+        None
     }
 
     fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> f64 {

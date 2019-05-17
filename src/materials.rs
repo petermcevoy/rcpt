@@ -29,9 +29,8 @@ impl Material for Lambertian {
         )
     }
     fn scattering_pdf(&self, r_in: &Ray, rec: &Hit, scattered: &Ray) -> f64 {
-        let mut cosine = (rec.normal.make_unit_vector()).dot(scattered.direction.make_unit_vector());
-        if cosine < 0.0 {cosine = 0.0}
-        return cosine / PI;
+        let cosine = (rec.normal.make_unit_vector()).dot(scattered.direction.make_unit_vector()).max(0.0);
+		cosine / PI
     }
     fn emitted(&self, r_in: &Ray, rec: &Hit, u: f64, v: f64, p: Vec3) -> Vec3 {
         if rec.normal.dot(r_in.direction) < 0.0 { 
@@ -54,19 +53,3 @@ impl Material for Metal {
         )
     }
 }
-
-//pub struct DiffuseLight { pub albedo: Vec3 }
-//impl Material for DiffuseLight {
-//    fn scatter(&self, r_in: &Ray, hit_recrod: &Hit, alb: &mut Vec3, scattered: &mut Ray, pdf: &mut f64) -> bool {
-//        return false;
-//    }
-//    fn emitted(&self, r_in: &Ray, rec: &Hit, u: f64, v: f64, p: Vec3) -> Vec3 {
-//        if rec.normal.dot(r_in.direction) < 0.0 {
-//            return self.albedo;
-//        }
-//        return Vec3::ZEROS;
-//    }
-//    fn scattering_pdf(&self, r_in: &Ray, rec: &Hit, scattered: &Ray) -> f64 {
-//        return 1.0 / PI;
-//    }
-//}

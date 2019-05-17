@@ -41,8 +41,9 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
                 normal: Vec3(0.0, -1.0, 0.0),
                 rot_around_normal: 0.0,
                 width: 130.0,
-               height: 105.0,
-                material: Some(Arc::new( materials::Lambertian{ emit: Vec3(15.0, 15.0, 15.0), albedo: Vec3::ZEROS } ) )
+                height: 105.0,
+                //material: Some(Arc::new( materials::Lambertian{ emit: Vec3(15.0, 15.0, 15.0), albedo: Vec3::ZEROS } ) )
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3(0.0, 0.0, 0.0), albedo: Vec3::ZEROS } ) )
             }  
         ),
         Box::new( //White floor
@@ -75,14 +76,22 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
                 material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
-        Box::new( //Small box
-            Cuboid::new()
-                .origin(Vec3(185.0, 165.0/2.0, 169.0))
-                .size(Vec3(165.0, 165.0, 165.0))
-                .rot(Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)))
-                .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
-                //.material( Arc::new( materials::Metal{ albedo: Vec3(0.73, 0.73, 0.73), fuzz: 0.0 } ) )
-                .build()
+        //Box::new( //Small box
+        //    Cuboid::new()
+        //        .origin(Vec3(185.0, 165.0/2.0, 169.0))
+        //        .size(Vec3(165.0, 165.0, 165.0))
+        //        .rot(Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)))
+        //        .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+        //        //.material( Arc::new( materials::Metal{ albedo: Vec3(0.73, 0.73, 0.73), fuzz: 0.0 } ) )
+        //        .build()
+        //),
+        Box::new( //Small sphere
+            Sphere{
+                center: Vec3(200.0, 165.0/2.0, 169.0),
+                radius: 165.0/2.0,
+                material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } ) )
+                //material: Some(Arc::new( materials::Lambertian{ emit: Vec3(0.0, 0.0, 0.0), albedo: Vec3::ZEROS } ) )
+            }
         ),
         Box::new( //Tall box
             Cuboid::new()
