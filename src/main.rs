@@ -66,10 +66,10 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
     }
 }
 
-const NX: usize = 250;
-const NY: usize = 250;
+const NX: usize = 500;
+const NY: usize = 500;
 const NPARTS: usize = 31;
-const NS_PER_PART: usize = 6;
+const NS_PER_PART: usize = 32;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
@@ -91,7 +91,7 @@ fn main() -> std::io::Result<()>{
                     let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
                     let r = camera.get_ray(u, v);
                     
-                    col += color(&r, &world, world[6].as_ref(), 0);
+                    col += color(&r, &world, world[2].as_ref(), 0);
                 }
                 col /= NS_PER_PART as f64;
                 col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
