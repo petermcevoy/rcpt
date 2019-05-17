@@ -160,3 +160,9 @@ impl Index<usize> for Vec3 {
         }
     }
 }
+
+impl PartialEq for Vec3 {
+    fn eq(&self, other: &Vec3) -> bool {
+        (*self - *other).squared_length() < 1e-5
+    }
+}

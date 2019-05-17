@@ -10,6 +10,7 @@ mod model;
 mod aabb;
 mod hitable;
 mod scenes;
+mod transform;
 
 use cgmath::{Vec3, Quaternion};
 use ray::{Ray, PDF, CosinePDF, HitablePDF, MixturePDF};
