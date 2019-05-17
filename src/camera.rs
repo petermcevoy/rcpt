@@ -23,6 +23,10 @@ pub fn random_in_unit_disk() -> Vec3 {
 }
 
 impl Camera {
+    pub fn none() -> Camera {
+        Camera::new(Vec3(0.0, 0.0, 5.0), Vec3::ZEROS, Vec3(0.0, 1.0, 0.0), 45.0, 0.5, 0.1, 5.0)
+    }
+
     pub fn new(lookfrom: Vec3, lookat: Vec3, vup: Vec3, vfov: f64, aspect: f64,
                aperture: f64, focus_dist: f64) -> Camera {
         let theta = vfov*std::f64::consts::PI/180.0;
