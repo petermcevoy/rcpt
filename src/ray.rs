@@ -131,15 +131,15 @@ impl <'a> PDF for HitablePDF<'a> {
     }
 }
 
-pub struct MixturePDF { pdfs: [Box<PDF>; 2] }
-impl MixturePDF {
-    pub fn new(pdf1: Box<PDF>, pdf2: Box<PDF>) -> MixturePDF {
+pub struct MixturePDF<'a>{ pdfs: [&'a dyn PDF; 2] }
+impl <'a> MixturePDF<'a> {
+    pub fn new(pdf1: &'a dyn PDF, pdf2: &'a dyn PDF) -> MixturePDF<'a> {
         MixturePDF {
             pdfs: [pdf1, pdf2]
         }
     }
 }
-impl PDF for MixturePDF {
+impl <'a> PDF for MixturePDF<'a> {
     fn value(&self, direction: Vec3) -> f64 {
         return 0.5*self.pdfs[0].value(direction) + 0.5*self.pdfs[1].value(direction);
     }

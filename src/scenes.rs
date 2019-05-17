@@ -81,6 +81,7 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
                 .size(Vec3(165.0, 165.0, 165.0))
                 .rot(Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)))
                 .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                //.material( Arc::new( materials::Metal{ albedo: Vec3(0.73, 0.73, 0.73), fuzz: 0.0 } ) )
                 .build()
         ),
         Box::new( //Tall box
@@ -88,7 +89,8 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
                 .origin(Vec3(368.0, 330.0/2.0, 351.0))
                 .size(Vec3(165.0, 330.0, 165.0))
                 .rot(Quaternion::from_eulerangles(Vec3(0.0, 15.0*PI/180.0, 0.0)))
-                .material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                //.material( Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
+                .material( Arc::new( materials::Metal{ albedo: Vec3(0.73, 0.73, 0.73), fuzz: 0.0 } ) )
                 .build()
         )
     ];

@@ -32,25 +32,31 @@ const light_shape: Plane = Plane {
 fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
     match world.hit(r) {
         Some(rec) => {
-            let mut scattered = Ray::NONE;
-            let mut pdf_val = 0.0;
-            let mut albedo = Vec3::ZEROS;
+            //let mut scattered = Ray::NONE;
+            //let mut pdf_val = 0.0;
+            //let mut albedo = Vec3::ZEROS;
             let emitted;
             match rec.material.as_ref() {
                 Some(mat) => {
                     emitted = mat.emitted(&r, &rec, rec.u, rec.v, rec.p);
-                    if depth < 50 && mat.scatter(&r, &rec, &mut albedo, &mut scattered, &mut pdf_val) {
-                        let hitable_pdf = HitablePDF::new(&light_shape, rec.p);
-                        let cosine_pdf = CosinePDF::new(rec.normal);
-                        let p = MixturePDF::new(Box::new(hitable_pdf), Box::new(cosine_pdf));
+                    if depth < 50 {
+                        if let Some(srec) = mat.scatter(&r, &rec) {
+                            if let Some(specular_ray) = srec.specular_ray {
+                                return srec.attenuation * color(&specular_ray, world, depth+1);
+                            } else {
+                                let hitable_pdf = HitablePDF::new(&light_shape, rec.p);
+                                let mat_pdf = srec.pdf.unwrap();
+                                let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
 
-                        scattered = Ray{origin: rec.p, direction: p.generate()};
-                        pdf_val = p.value(scattered.direction);
-                        if pdf_val == 0.0 { return emitted; }
-                        let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
+                                let scattered = Ray{origin: rec.p, direction: p.generate()};
+                                let pdf_val = p.value(scattered.direction);
+                                if pdf_val == 0.0 { return emitted; }
+                                let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
-                        let val = emitted + albedo*scattering_pdf_val*color(&scattered, world, depth+1) / (pdf_val);
-                        return val;
+                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, depth+1) / (pdf_val);
+                                return val;
+                            }
+                        }
                     }
                 }, 
                 None => {emitted = Vec3::ERROR;}
@@ -66,7 +72,7 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
 const NX: usize = 500;
 const NY: usize = 500;
 const NPARTS: usize = 31;
-const NS_PER_PART: usize = 4;
+const NS_PER_PART: usize = 1;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();

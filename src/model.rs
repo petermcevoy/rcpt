@@ -86,7 +86,7 @@ impl Plane {
 impl Hitable for Plane {
     fn hit(&self, r: &Ray) -> Option<Hit> {
 		let local_normal = Vec3(0.0, 0.0, 1.0);
-        let irot = Quaternion::rot_from_vecs(self.normal, local_normal);
+        let irot = Quaternion::rot_from_vecs(self.normal.make_unit_vector(), local_normal);
         let local_ray = Ray{
             origin: irot.transform_vec(r.origin - self.origin),
             direction: irot.transform_vec(r.direction),
@@ -255,6 +255,7 @@ impl Hitable for Cuboid {
             Some(mut rec) => {
                 rec.material = self.material.clone();
                 rec.p = r.point_at_paramter(rec.t);
+                rec.normal = self.rot.transform_vec(rec.normal);
                 return Some(rec);
             },
             None => {return None;}
