@@ -41,33 +41,13 @@ fn color(r: &Ray, world: &Hitable, depth: usize) -> Vec3 {
                     if depth < 50 && mat.scatter(&r, &rec, &mut albedo, &mut scattered, &mut pdf_val) {
                         let hitable_pdf = HitablePDF::new(&light_shape, rec.p);
                         let cosine_pdf = CosinePDF::new(rec.normal);
-                        //let p = CosinePDF::new(rec.normal);
                         let p = MixturePDF::new(Box::new(hitable_pdf), Box::new(cosine_pdf));
-                        //let p = HitablePDF::new(&light_shape, rec.p);
-                        //let mut to_light = p.generate();
-                        //scattered = Ray{origin: rec.p, direction: to_light.make_unit_vector()};
-                        
-                        //let distance_squared = to_light.squared_length();
-                        //to_light = to_light.make_unit_vector();
-                        //let light_area = light_shape.width*light_shape.height;
-                        //let cosine = to_light.dot(light_shape.normal).abs();
-                        //pdf_val = distance_squared / (cosine * light_area) + 1e-5;
-                        //
-
 
                         scattered = Ray{origin: rec.p, direction: p.generate()};
                         pdf_val = p.value(scattered.direction);
-                        //println!("{:?}", pdf_val);
-                        //if pdf_val == 0.0 { return Vec3::ERROR; }
-                        //return pdf_val/100.0 * Vec3::ONES;
-                        
-                        
                         if pdf_val == 0.0 { return emitted; }
-
-
                         let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
-                        //let scattering_pdf_val = 1.0;
-                    
+
                         let val = emitted + albedo*scattering_pdf_val*color(&scattered, world, depth+1) / (pdf_val);
                         return val;
                     }
@@ -126,13 +106,6 @@ fn make_cornell() -> Vec<Box<Hitable>> {
                 material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
             }  
         ),
-        //Box::new( //White ceiling
-        //    Sphere {
-        //        center: Vec3(555.0/2.0, 555.0+10000.0, 555.0/2.0),
-        //        radius: 10000.0,
-        //        material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: Vec3(0.73, 0.73, 0.73) } ) )
-        //    }  
-        //),
         Box::new( //White ceiling
             Plane {
                 origin: Vec3(555.0/2.0, 555.0, 555.0/2.0),
@@ -270,7 +243,7 @@ fn make_cornell() -> Vec<Box<Hitable>> {
 fn main() -> std::io::Result<()>{
     const nx: usize = 500;
     const ny: usize = 500;
-    const nparts: usize = 11;
+    const nparts: usize = 31;
     const ns_per_part: usize = 8;
     
     //let camera;

@@ -97,7 +97,7 @@ impl Hitable for Plane {
         //if denom < 0.0 {
             let t = (-1.0*local_ray.origin).dot(local_normal) / denom;
 
-			if t > 0.0 {
+			if t > 1e-5 {
                 // Check if we are in bounds.
                 let local_p = local_ray.point_at_paramter(t);
 
@@ -120,12 +120,9 @@ impl Hitable for Plane {
         match self.hit(&Ray::new(ray_origin, v)) {
             Some(rec) => {
                 let area = (self.width*self.height);
-                //let distance_squared = rec.t * rec.t * v.squared_length();
-                //let distance_squared = v.squared_length();
                 let distance_squared = rec.t * rec.t * v.squared_length();
                 let cosine = (v.dot(rec.normal)).abs() / v.length();
                 return distance_squared / (cosine * area);
-                //if cosine != 0.0 { distance_squared / (cosine * area) } else { 0.0 }
             },
             None => {return 0.0;},
         }
@@ -140,8 +137,6 @@ impl Hitable for Plane {
         let local_normal = Vec3::new(0.0, 0.0, 1.0);
         let rot = Quaternion::rot_from_vecs(local_normal, self.normal);
         let mut tmp = rot.transform_vec(local_random_point);
-        tmp.0 = -1.0 * tmp.0;
-        tmp.1 = -1.0 * tmp.1;
         let global_random_point = tmp + self.origin;
 
         return global_random_point - ray_origin;
