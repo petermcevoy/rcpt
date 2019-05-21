@@ -14,12 +14,13 @@ mod bvh_accel;
 mod core {
     pub type Real = f32;
 
-    pub use crate::cgmath::{Vec3, Quaternion};
+    pub use crate::cgmath::{Vec3, Vec3Axis, Quaternion};
     pub use crate::ray::{Ray, HitablePDF, MixturePDF, PDF};
     pub use crate::hitable::{Hitable, Hit};
     pub use crate::materials::{Material};
     pub use crate::bounds::{Bounds3};
     pub use crate::model::{Shape};
+    pub use crate::bvh_accel::{BVHAccel, BVHSplitMethod};
 
     pub const PI: Real = std::f32::consts::PI as Real;
     pub const R_MAX: Real = std::f32::MAX;
@@ -32,6 +33,7 @@ use crate::core::*;
 use camera::{Camera, random_in_unit_disk};
 use model::*;
 use scenes::{make_dev_scene, make_cornell};
+use std::rc::Rc;
 
 const light_shape: Plane = Plane {
     origin: Vec3(278.0, 554.0, 279.5),
@@ -42,8 +44,45 @@ const light_shape: Plane = Plane {
     material: None
 };
 
-fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
-    match world.hit(r) {
+fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize, bvh: &BVHAccel) -> Vec3 {
+
+    match bvh.intersect(r) {
+        Some(rec) => {
+            let emitted;
+            match rec.material.as_ref() {
+                Some(mat) => {
+                    emitted = mat.emitted(&r, &rec, rec.u, rec.v, rec.p);
+                    if depth < 50 {
+                        if let Some(srec) = mat.scatter(&r, &rec) {
+                            if let Some(specular_ray) = srec.specular_ray {
+                                return srec.attenuation * color(&specular_ray, world, light, depth+1, bvh);
+                            } else {
+                                //let hitable_pdf = HitablePDF::new(light, rec.p);
+                                //let mat_pdf = srec.pdf.unwrap();
+                                //let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
+                                let p = ray::CosinePDF::new(rec.normal);
+
+                                let scattered = Ray::new(rec.p, p.generate());
+                                let pdf_val = p.value(scattered.direction);
+                                if pdf_val == 0.0 { return emitted; }
+                                let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
+
+                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1, bvh) / (pdf_val + 1e-5);
+                                return val;
+                            }
+                        }
+                    }
+                }, 
+                None => {emitted = Vec3::ERROR;}
+            }
+            return emitted
+        }, 
+        None => {
+            return Vec3::ZEROS;
+        }
+    }
+
+   /* match world.hit(r) {
         Some(rec) => {
             let emitted;
             match rec.material.as_ref() {
@@ -58,7 +97,7 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
                                 let mat_pdf = srec.pdf.unwrap();
                                 let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
 
-                                let scattered = Ray{origin: rec.p, direction: p.generate()};
+                                let scattered = Ray::new(rec.p, p.generate());
                                 let pdf_val = p.value(scattered.direction);
                                 if pdf_val == 0.0 { return emitted; }
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
@@ -76,26 +115,51 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
         None => {
             return Vec3::ZEROS;
         }
-    }
+    }*/
 }
 
-const NX: usize = 500;
-const NY: usize = 500;
-const NPARTS: usize = 12;
-const NS_PER_PART: usize = 1;
+const NX: usize = 100;
+const NY: usize = 100;
+const NPARTS: usize = 1;
+const NS_PER_PART: usize = 2;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
 
     //let world = make_random_scene();
-    //let world = make_dev_scene(&mut camera);
-    let world = make_cornell(&mut camera);
+    let world = make_dev_scene(&mut camera);
+    //let world = make_cornell(&mut camera);
+
+    println!("Building BVH...");
+    let mut bvh;
+    {
+        let shapes: Vec<Rc<Shape>> = vec![
+            Rc::new(Sphere{
+                center: Vec3::new(0.0, -1000.0, 0.0),
+                radius: 1000.0,
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: 0.9*Vec3::ONES } )),
+            }),
+            Rc::new(Sphere{
+                center: Vec3::new(-2.0, 2.0, 0.0),
+                radius: 1.0,
+                material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } )),
+            }),
+            Rc::new(Sphere{
+                center: Vec3::new(-2.5, 2.0, 0.0),
+                radius: 0.1,
+                material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: 0.9*Vec3::ONES } )),
+            }),
+        ];
+        bvh = BVHAccel::new(10, BVHSplitMethod::Equal, shapes);
+        bvh = bvh.build();
+        println!("BVH finsihed.");
+    }
 
     //Initializing temporary buffers for threads...
     let mut buffer_array = vec![vec![0.0; (NX*NY*4 as usize)]; NPARTS];
 
     // Dispatch threads.
-    buffer_array.par_iter_mut().for_each(|buffer| {
+    buffer_array.iter_mut().for_each(|buffer| {
         for y in 0..NY {
             for x in 0..NX {
                 let mut col = Vec3::ZEROS;
@@ -104,7 +168,7 @@ fn main() -> std::io::Result<()>{
                     let v = (y as Real + rand::random::<Real>()) / (NY as Real);
                     let r = camera.get_ray(u, v);
                     
-                    col += color(&r, &world, world[2].as_ref(), 0);
+                    col += color(&r, &world, world[2].as_ref(), 0, &bvh);
                 }
                 col /= NS_PER_PART as Real;
                 col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );

@@ -51,9 +51,9 @@ impl Camera {
     pub fn get_ray(self, s: Real, t: Real) -> Ray {
         let rd = self.lens_radius*random_in_unit_disk();
         let offset = self.u*rd.x() + self.v*rd.y();
-        return Ray{
-            origin: self.origin + offset, 
-            direction: self.lower_left_corner + s*self.horizontal + t*self.vertical - self.origin - offset
-        };
+        return Ray::new(
+            self.origin + offset, 
+            self.lower_left_corner + s*self.horizontal + t*self.vertical - self.origin - offset
+        );
     }
 }

@@ -4,6 +4,22 @@ pub use crate::core::Real;
 #[derive(Debug, Copy, Clone)]
 pub struct Vec3(pub Real, pub Real, pub Real);
 
+#[derive(Debug, Copy, Clone)]
+pub enum Vec3Axis { X, Y, Z }
+impl Vec3Axis {
+    pub fn iter() -> std::slice::Iter<'static, Vec3Axis> {
+        static AXES: [Vec3Axis; 3] = [Vec3Axis::X, Vec3Axis::Y, Vec3Axis::Z];
+        AXES.into_iter()
+    }
+    pub fn to_index(&self) -> usize {
+        match self {
+            Vec3Axis::X => 0,
+            Vec3Axis::Y => 1,
+            Vec3Axis::Z => 2,
+        }
+    }
+}
+
 impl Vec3 {
     pub const fn new(x: Real, y: Real, z: Real) -> Vec3 {
         Vec3(x, y, z)
@@ -21,6 +37,22 @@ impl Vec3 {
     pub fn r(&self) -> Real { self.0 }
     pub fn g(&self) -> Real { self.1 }
     pub fn b(&self) -> Real { self.2 }
+
+    pub fn get_axis(&self, a: Vec3Axis) -> Real {
+        match a {
+            Vec3Axis::X => self.0,
+            Vec3Axis::Y => self.1,
+            Vec3Axis::Z => self.2,
+        }
+    }
+    pub fn set_axis(&mut self, a: Vec3Axis, val: Real) -> Self {
+        match a {
+            Vec3Axis::X => self.0 = val,
+            Vec3Axis::Y => self.1 = val,
+            Vec3Axis::Z => self.2 = val,
+        };
+        *self
+    }
 
     pub fn dot(self, b: Vec3) -> Real {
         return 

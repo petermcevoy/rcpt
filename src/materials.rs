@@ -45,7 +45,7 @@ impl Material for Metal {
         let reflected = reflect(r_in.direction.make_unit_vector(), rec.normal);
         Some(
             ScatterRecord{
-                specular_ray: Some(Ray{origin: rec.p, direction: reflected + self.fuzz*random_in_unit_sphere()}),
+                specular_ray: Some(Ray::new(rec.p, reflected + self.fuzz*random_in_unit_sphere())),
                 attenuation: self.albedo,
                 pdf: None
             }

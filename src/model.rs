@@ -4,7 +4,8 @@ use crate::ray::{UVW, random_to_sphere};
 use std::sync::Arc;
 
 pub trait Shape {
-    fn world_boudns(&self) -> Bounds3;
+    fn world_bounds(&self) -> Bounds3;
+    fn intersect(&self, r: &Ray) -> Option<Hit>;
 }
 
 #[derive(Clone)]
@@ -12,6 +13,50 @@ pub struct Sphere {
     pub center: Vec3,
     pub radius: Real,
     pub material: Option<Arc<Material + Send>>
+}
+
+impl Shape for Sphere {
+    fn world_bounds(&self) -> Bounds3 {
+        Bounds3::new(
+            self.center - Vec3::ONES*self.radius,
+            self.center + Vec3::ONES*self.radius,
+        )
+    }
+    fn intersect(&self, r: &Ray) -> Option<Hit> {
+        let oc = r.origin - self.center;
+        let a = r.direction.dot(r.direction);
+        let b = oc.dot(r.direction);
+        let c = oc.dot(oc) - self.radius*self.radius;
+        let discriminant = b*b - a*c;
+        if discriminant > 0.0 {
+            let mut t = (-b - discriminant.sqrt()) / a;
+            if t < R_MAX && t > EPS {
+                let p = r.point_at_paramter(t);
+                return Some(Hit{
+                    t,
+                    p,
+                    u: 0.0, //TODO
+                    v: 0.0, //TODO
+                    normal: (p - self.center) / self.radius,
+                    material: self.material.clone(),
+                });
+            }
+            t= (-b + discriminant.sqrt()) / a;
+            if t < R_MAX && t > EPS {
+                let p = r.point_at_paramter(t);
+
+                return Some(Hit{
+                    t,
+                    p, 
+                    u: 0.0, //TODO
+                    v: 0.0, //TODO
+                    normal: (p - self.center) / self.radius,
+                    material: self.material.clone()
+                });
+            }
+        }
+        None
+    }
 }
 
 impl Hitable for Sphere {
@@ -98,10 +143,10 @@ impl Hitable for Plane {
     fn hit(&self, r: &Ray) -> Option<Hit> {
 		let local_normal = Vec3(0.0, 0.0, 1.0);
         let irot = Quaternion::rot_from_vecs(self.normal.make_unit_vector(), local_normal);
-        let local_ray = Ray{
-            origin: irot.transform_vec(r.origin - self.origin),
-            direction: irot.transform_vec(r.direction),
-        };
+        let local_ray = Ray::new(
+            irot.transform_vec(r.origin - self.origin),
+            irot.transform_vec(r.direction),
+        );
         
         // Check if we intersect the infinite plane.
         let denom = local_normal.dot(local_ray.direction);
