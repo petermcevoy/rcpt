@@ -1,4 +1,9 @@
-use crate::*;
+use crate::core::*;
+use crate::model::*;
+use crate::camera::*;
+use crate::materials;
+use std::sync::Arc;
+use crate::{NX, NY};
 
 
 pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
@@ -8,7 +13,7 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
         let lookat = Vec3::new(278.0, 278.0, 0.0);
         let up = Vec3::new(0.0, 1.0, 0.0);
         let fov = 40.0;
-        let aspect = (NX as f64)/(NY as f64);
+        let aspect = (NX as Real)/(NY as Real);
         let aperture = 0.0;
         let focus_dist = 10.0;//(lookfrom-lookat).length();
         *camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
@@ -111,7 +116,7 @@ pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
         let lookat = Vec3(0.0, 1.0, 0.0);
         let up = Vec3(0.0, 1.0, 0.0);
         let fov = 20.0;
-        let aspect = (NX as f64)/(NY as f64);
+        let aspect = (NX as Real)/(NY as Real);
         let aperture = 0.3;
         let focus_dist = (lookfrom-lookat).length();
         *camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
@@ -121,7 +126,7 @@ pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
     //    let lookat = Vec3::new(0.0, 0.0, 0.0);
     //    let up = Vec3::new(0.0, 1.0, 0.0);
     //    let fov = 20.0;
-    //    let aspect = (NX as f64)/(NY as f64);
+    //    let aspect = (NX as Real)/(NY as Real);
     //    let aperture = 0.3;
     //    let focus_dist = (lookfrom-lookat).length();
     //    *camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
@@ -188,13 +193,13 @@ pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
 //
 //    fn random_material() -> Arc<Material + Send> {
 //        let rand_vec = Vec3::new(random(), random(), random());
-//        let rval = rand::random::<f64>();
+//        let rval = rand::random::<Real>();
 //        if rval < 0.7 {
 //            Arc::new( materials::Lambertian{ albedo: rand_vec})
 //        } else if rval < 0.9 {
 //            Arc::new(materials::Metal {
 //                albedo: Vec3::new(0.5, 0.5, 0.5) + 0.5*rand_vec, 
-//                fuzz: 0.5*rand::random::<f64>(),
+//                fuzz: 0.5*rand::random::<Real>(),
 //            })
 //        } else {
 //            Arc::new( materials::Dielectric{ ref_idx: 1.5 })
@@ -202,7 +207,7 @@ pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
 //    }
 //
 //    for _ in 0..500 {
-//        let r = 0.4 as f64;
+//        let r = 0.4 as Real;
 //        let Vec3(x, z, _) = random_in_unit_disk();
 //        let pos = 20.0 * Vec3(x, 0.0, z) + Vec3(0.0, r, 0.0);
 //        if spheres.iter().all(|s| (s.center - pos).length() >= s.radius + r) {

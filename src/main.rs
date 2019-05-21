@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use rand::prelude::*;
 use rayon::prelude::*;
 
 mod cgmath;
@@ -7,19 +6,33 @@ mod ray;
 mod materials;
 mod camera;
 mod model;
-mod aabb;
 mod hitable;
 mod scenes;
+mod bounds;
+mod bvh_accel;
 
-use cgmath::{Vec3, Quaternion};
-use ray::{Ray, PDF, CosinePDF, HitablePDF, MixturePDF};
-use hitable::{Hitable};
+mod core {
+    pub type Real = f32;
+
+    pub use crate::cgmath::{Vec3, Quaternion};
+    pub use crate::ray::{Ray, HitablePDF, MixturePDF, PDF};
+    pub use crate::hitable::{Hitable, Hit};
+    pub use crate::materials::{Material};
+    pub use crate::bounds::{Bounds3};
+    pub use crate::model::{Shape};
+
+    pub const PI: Real = std::f32::consts::PI as Real;
+    pub const R_MAX: Real = std::f32::MAX;
+    pub const EPS: Real = 1e-5;
+
+    pub use rand::prelude::*;
+}
+    
+use crate::core::*;
 use camera::{Camera, random_in_unit_disk};
-use materials::{Material};
 use model::*;
 use scenes::{make_dev_scene, make_cornell};
 
-use std::f64::consts::PI;
 const light_shape: Plane = Plane {
     origin: Vec3(278.0, 554.0, 279.5),
     normal: Vec3(0.0, -1.0, 0.0),
@@ -68,8 +81,8 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
 
 const NX: usize = 500;
 const NY: usize = 500;
-const NPARTS: usize = 31;
-const NS_PER_PART: usize = 32;
+const NPARTS: usize = 12;
+const NS_PER_PART: usize = 1;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
@@ -87,13 +100,13 @@ fn main() -> std::io::Result<()>{
             for x in 0..NX {
                 let mut col = Vec3::ZEROS;
                 for _s in 0..NS_PER_PART {
-                    let u = (x as f64 + rand::random::<f64>()) / (NX as f64);
-                    let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
+                    let u = (x as Real + rand::random::<Real>()) / (NX as Real);
+                    let v = (y as Real + rand::random::<Real>()) / (NY as Real);
                     let r = camera.get_ray(u, v);
                     
                     col += color(&r, &world, world[2].as_ref(), 0);
                 }
-                col /= NS_PER_PART as f64;
+                col /= NS_PER_PART as Real;
                 col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
                 buffer[(((NY-1-y)*NX + x)*4 + 0) as usize] = col.r();
                 buffer[(((NY-1-y)*NX + x)*4 + 1) as usize] = col.g();
@@ -104,11 +117,11 @@ fn main() -> std::io::Result<()>{
     });
 
     println!("Averaging...");
-    let mut final_float_buffer = vec![0.0 as f64; (NX*NY*4) as usize];
+    let mut final_float_buffer = vec![0.0 as Real; (NX*NY*4) as usize];
     let mut final_buffer = vec![0 as u8; (NX*NY*4) as usize];
     for buffer in buffer_array.iter() {
         for i in 0..buffer.len() {
-            let mut pixel_value = final_float_buffer[i] + buffer[i] / (NPARTS as f64);
+            let mut pixel_value = final_float_buffer[i] + buffer[i] / (NPARTS as Real);
             if pixel_value > 1.0 { pixel_value = 1.0; }
             final_float_buffer[i] = pixel_value;
         }

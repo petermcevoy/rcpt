@@ -1,10 +1,10 @@
 use std::ops::{Add, AddAssign, Sub, Mul, Div, DivAssign, Index};
 
-use super::vec::Vec3;
+use super::vec::{Vec3, Real};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Quaternion {
-    pub w: f64, pub x: f64, pub y: f64, pub z: f64
+    pub w: Real, pub x: Real, pub y: Real, pub z: Real
 }
 
 
@@ -24,7 +24,7 @@ impl Quaternion {
         }
     }
 
-    fn norm(self) -> f64 {
+    fn norm(self) -> Real {
         return (self.w*self.w + self.x*self.x + self.y*self.y + self.z*self.z).sqrt();
     }
 
@@ -97,7 +97,7 @@ impl Quaternion {
         let pitch;
         let sinp = 2.0 * (self.w * self.y + self.z * self.x);
         if sinp.abs() >= 1.0 {
-            let val = std::f64::consts::PI / 2.0;
+            let val = (std::f64::consts::PI as Real)/ 2.0;
             if sinp >= 0.0 {
                 pitch = val;
             } else {
@@ -171,9 +171,9 @@ impl Mul for Quaternion {
     }
 }
 
-impl Mul<f64> for Quaternion {
+impl Mul<Real> for Quaternion {
     type Output = Quaternion;
-    fn mul(self, other: f64) -> Quaternion {
+    fn mul(self, other: Real) -> Quaternion {
         Quaternion{
             w: self.w * other,
             x: self.x * other,

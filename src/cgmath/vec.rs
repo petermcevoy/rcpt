@@ -1,10 +1,11 @@
 use std::ops::{Add, AddAssign, Sub, Mul, Div, DivAssign, Index};
+pub use crate::core::Real;
 
 #[derive(Debug, Copy, Clone)]
-pub struct Vec3(pub f64, pub f64, pub f64);
+pub struct Vec3(pub Real, pub Real, pub Real);
 
 impl Vec3 {
-    pub const fn new(x: f64, y: f64, z: f64) -> Vec3 {
+    pub const fn new(x: Real, y: Real, z: Real) -> Vec3 {
         Vec3(x, y, z)
     }
     pub const ZEROS: Vec3 = Vec3(0.0, 0.0, 0.0);
@@ -14,14 +15,14 @@ impl Vec3 {
     pub const BLUE: Vec3 = Vec3(0.0, 0.0, 1.0);
     pub const ERROR: Vec3 = Vec3(1.0, 0.0, 1.0);
 
-    pub fn x(&self) -> f64 { self.0 }
-    pub fn y(&self) -> f64 { self.1 }
-    pub fn z(&self) -> f64 { self.2 }
-    pub fn r(&self) -> f64 { self.0 }
-    pub fn g(&self) -> f64 { self.1 }
-    pub fn b(&self) -> f64 { self.2 }
+    pub fn x(&self) -> Real { self.0 }
+    pub fn y(&self) -> Real { self.1 }
+    pub fn z(&self) -> Real { self.2 }
+    pub fn r(&self) -> Real { self.0 }
+    pub fn g(&self) -> Real { self.1 }
+    pub fn b(&self) -> Real { self.2 }
 
-    pub fn dot(self, b: Vec3) -> f64 {
+    pub fn dot(self, b: Vec3) -> Real {
         return 
             self.0 * b.0 +
             self.1 * b.1 +
@@ -36,7 +37,7 @@ impl Vec3 {
             );
     }
     
-    pub fn squared_length(&self) -> f64 {
+    pub fn squared_length(&self) -> Real {
         (
             self.0*self.0 + 
             self.1*self.1 + 
@@ -44,11 +45,11 @@ impl Vec3 {
         )
     }
     
-    pub fn norm(&self) -> f64 {
+    pub fn norm(&self) -> Real {
         return self.length();
     }
 
-    pub fn length(&self) -> f64 {
+    pub fn length(&self) -> Real {
         self.squared_length().sqrt()
     }
 
@@ -107,9 +108,9 @@ impl Mul for Vec3 {
         )
     }
 }
-impl Mul<f64> for Vec3 {
+impl Mul<Real> for Vec3 {
     type Output = Vec3;
-    fn mul(self, rhs: f64) -> Vec3 {
+    fn mul(self, rhs: Real) -> Vec3 {
         Vec3(
             self.0*rhs,
             self.1*rhs,
@@ -117,7 +118,7 @@ impl Mul<f64> for Vec3 {
         )
     }
 }
-impl Mul<Vec3> for f64 {
+impl Mul<Vec3> for Real {
     type Output = Vec3;
     fn mul(self, rhs: Vec3) -> Vec3 {
         Vec3(
@@ -128,9 +129,9 @@ impl Mul<Vec3> for f64 {
     }
 }
 
-impl Div<f64> for Vec3 {
+impl Div<Real> for Vec3 {
     type Output = Vec3;
-    fn div(self, rhs: f64) -> Vec3 {
+    fn div(self, rhs: Real) -> Vec3 {
         Vec3(
             self.0/rhs,
             self.1/rhs,
@@ -138,8 +139,8 @@ impl Div<f64> for Vec3 {
         )
     }
 }
-impl DivAssign<f64> for Vec3 {
-    fn div_assign(&mut self, rhs: f64) {
+impl DivAssign<Real> for Vec3 {
+    fn div_assign(&mut self, rhs: Real) {
         *self = Vec3(
             self.0/rhs,
             self.1/rhs,
@@ -149,9 +150,9 @@ impl DivAssign<f64> for Vec3 {
 }
 
 impl Index<usize> for Vec3 {
-    type Output = f64;
+    type Output = Real;
 
-    fn index(&self, i: usize) -> &f64 {
+    fn index(&self, i: usize) -> &Real {
         match i {
             0 => return &self.0,
             1 => return &self.1,
