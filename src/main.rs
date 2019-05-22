@@ -10,14 +10,24 @@ mod model;
 mod aabb;
 mod hitable;
 mod scenes;
+mod spectrum;
 
+mod core {
+    pub type Real = f64;
+    pub const EPS: Real = 1e-5;
+    pub const R_MAX: Real = std::f64::MAX;
+    pub use crate::cgmath::{Vec3, Quaternion};
+    //pub use crate::spectrum;
+    pub use crate::spectrum::{RGBSpectrum, Spectrum, SampledSpectrum};
+}
 use cgmath::{Vec3, Quaternion};
 use ray::{Ray, PDF, CosinePDF, HitablePDF, MixturePDF};
 use hitable::{Hitable};
 use camera::{Camera, random_in_unit_disk};
 use materials::{Material};
 use model::*;
-use scenes::{make_dev_scene, make_cornell};
+use scenes::*;
+use spectrum::*; //{RGBSpectrum, Spectrum, SampledSpectrum};
 
 use std::f64::consts::PI;
 const light_shape: Plane = Plane {
@@ -29,7 +39,7 @@ const light_shape: Plane = Plane {
     material: None
 };
 
-fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
+fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> SampledSpectrum {
     match world.hit(r) {
         Some(rec) => {
             let emitted;
@@ -39,50 +49,52 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Vec3 {
                     if depth < 50 {
                         if let Some(srec) = mat.scatter(&r, &rec) {
                             if let Some(specular_ray) = srec.specular_ray {
-                                return srec.attenuation * color(&specular_ray, world, light, depth+1);
+                                //return srec.attenuation * color(&specular_ray, world, light, depth+1);
+                                return color(&specular_ray, world, light, depth+1);
                             } else {
-                                let hitable_pdf = HitablePDF::new(light, rec.p);
-                                let mat_pdf = srec.pdf.unwrap();
-                                let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
+                                //let hitable_pdf = HitablePDF::new(light, rec.p);
+                                //let mat_pdf = srec.pdf.unwrap();
+                                //let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
+                                let p = CosinePDF::new(rec.normal);
 
                                 let scattered = Ray{origin: rec.p, direction: p.generate()};
                                 let pdf_val = p.value(scattered.direction);
-                                if pdf_val == 0.0 { return emitted; }
+                                if pdf_val == 0.0 { return emitted.clone(); }
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
-                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1) / (pdf_val + 1e-5);
-                                return val;
+                                let val = emitted; //+ srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1) / (pdf_val + 1e-5);
+                                return val.clone();
                             }
                         }
                     }
                 }, 
-                None => {emitted = Vec3::ERROR;}
+                None => {return spectrum::zero_spectrum();}
             }
-            return emitted
+            return emitted.clone()
         }, 
         None => {
-            return Vec3::ZEROS;
+            return spectrum::zero_spectrum();
         }
     }
 }
 
-const NX: usize = 500;
-const NY: usize = 500;
-const NPARTS: usize = 31;
-const NS_PER_PART: usize = 32;
+const NX: usize = 250;
+const NY: usize = 250;
+const NPARTS: usize = 1;
+const NS_PER_PART: usize = 1;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
 
     //let world = make_random_scene();
-    //let world = make_dev_scene(&mut camera);
-    let world = make_cornell(&mut camera);
+    let world = make_dev_scene(&mut camera);
+    //let world = make_cornell(&mut camera);
 
     //Initializing temporary buffers for threads...
     let mut buffer_array = vec![vec![0.0; (NX*NY*4 as usize)]; NPARTS];
-
+    
     // Dispatch threads.
-    buffer_array.par_iter_mut().for_each(|buffer| {
+    buffer_array.iter_mut().for_each(|buffer| {
         for y in 0..NY {
             for x in 0..NX {
                 let mut col = Vec3::ZEROS;
@@ -91,10 +103,13 @@ fn main() -> std::io::Result<()>{
                     let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
                     let r = camera.get_ray(u, v);
                     
-                    col += color(&r, &world, world[2].as_ref(), 0);
+                    //col += color(&r, &world, world[2].as_ref(), 0);
+                    let static gain = 0.1;
+                    let val = gain * integrate_spectrum_cie(&color(&r, &world, world[0].as_ref(), 0));
+                    col += val;
                 }
                 col /= NS_PER_PART as f64;
-                col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
+                //col = Vec3::new( col.r().sqrt(), col.g().sqrt(), col.b().sqrt() );
                 buffer[(((NY-1-y)*NX + x)*4 + 0) as usize] = col.r();
                 buffer[(((NY-1-y)*NX + x)*4 + 1) as usize] = col.g();
                 buffer[(((NY-1-y)*NX + x)*4 + 2) as usize] = col.b();
@@ -114,6 +129,17 @@ fn main() -> std::io::Result<()>{
         }
     }
 
+    //for i_x in 0..NX {
+    //    for i_y in 0..NY {
+    //        let offset = (i_y*NX + i_x)*4;
+    //        let pixel_values = &final_float_buffer[offset..(offset + 4)];
+    //        let pixel = Vec3::new(pixel_values[0], pixel_values[1], pixel_values[2]);
+    //        final_float_buffer[offset + 0] = pixel.r();
+    //        final_float_buffer[offset + 1] = pixel.g();
+    //        final_float_buffer[offset + 2] = pixel.b();
+    //        final_float_buffer[offset + 3] = 1.0;
+    //    }
+    //}
     let iter = final_buffer.iter_mut().zip(final_float_buffer.iter());
     for (final_pixel, float_pixel) in iter {
         *final_pixel = (255.99*float_pixel) as u8;

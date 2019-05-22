@@ -1,6 +1,6 @@
 use crate::*;
 
-
+/*
 pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
 
     {
@@ -104,7 +104,7 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
         )
     ];
     return scene;
-}
+}*/
 pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
     {
         let lookfrom = Vec3(0.0, 2.0, 25.0);
@@ -131,21 +131,21 @@ pub fn make_dev_scene(camera: &mut Camera) -> Vec<Box<Hitable>> {
         Box::new(Sphere{
             center: Vec3::new(0.0, -1000.0, 0.0),
             radius: 1000.0,
-            material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: 0.8*Vec3::ONES } )),
+            material: Some(Arc::new( materials::Lambertian{ emit: spectrum::cornell_light(), albedo: 0.8*Vec3::ONES } )),
         }),
-        Box::new(Plane{
-            origin: Vec3::new(0.0, 3.0, 0.0),
-            normal: Vec3::new(0.0, -1.0, 0.0),
-            rot_around_normal: 0.0,
-            width: 4.0,
-            height: 8.0,
-            material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } )),
-        }),
-        Box::new(Sphere{
-            center: Vec3::new(0.0, 1.0, 0.0),
-            radius: 1.0,
-            material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: 0.9*Vec3::ONES } )),
-        }),
+        //Box::new(Plane{
+        //    origin: Vec3::new(0.0, 3.0, 0.0),
+        //    normal: Vec3::new(0.0, -1.0, 0.0),
+        //    rot_around_normal: 0.0,
+        //    width: 4.0,
+        //    height: 8.0,
+        //    material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } )),
+        //}),
+        //Box::new(Sphere{
+        //    center: Vec3::new(0.0, 1.0, 0.0),
+        //    radius: 1.0,
+        //    material: Some(Arc::new( materials::Lambertian{ emit: Vec3::ZEROS, albedo: 0.9*Vec3::ONES } )),
+        //}),
         //Box::new(Sphere{
         //    center: Vec3::new(5.0, 1.0, -10.0),
         //    radius: 1.0,
