@@ -44,7 +44,11 @@ const light_shape: Plane = Plane {
     material: None
 };
 
-fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Spectrum {
+lazy_static! {
+    static ref ENV_LIGHT: Option<&'static Spectrum> = Some(&spectrum::ILLUMINATION_D65); 
+}
+
+fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spectrum>, depth: usize) -> Spectrum {
     match world.hit(r) {
         Some(rec) => {
             let emitted;
@@ -54,20 +58,20 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Spectru
                     if depth < 50 {
                         if let Some(srec) = mat.scatter(&r, &rec) {
                             if let Some(specular_ray) = srec.specular_ray {
-                                return srec.attenuation * color(&specular_ray, world, light, depth+1);
+                                return srec.attenuation * color(&specular_ray, world, light, env_light, depth+1);
                                 //return color(&specular_ray, world, light, depth+1);
                             } else {
-                                let hitable_pdf = HitablePDF::new(light, rec.p);
-                                let mat_pdf = srec.pdf.unwrap();
-                                let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
-                                //let p = CosinePDF::new(rec.normal);
+                                //let hitable_pdf = HitablePDF::new(light, rec.p);
+                                //let mat_pdf = srec.pdf.unwrap();
+                                //let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
+                                let p = CosinePDF::new(rec.normal);
 
                                 let scattered = Ray{origin: rec.p, direction: p.generate()};
                                 let pdf_val = p.value(scattered.direction);
                                 if pdf_val == 0.0 { return emitted.clone(); }
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
-                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1) / (pdf_val + 1e-5);
+                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, env_light, depth+1) / (pdf_val + 1e-5);
 
 
                                 return val.clone();
@@ -79,21 +83,27 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Spectru
             }
             return emitted.clone()
         }, 
-        None => {return spectrum::Spectrum::default();}
+        None => {
+            match env_light {
+                Some(illum) => *illum,
+                None => spectrum::Spectrum::default(),
+            }
+        }
     }
 }
 
 const NX: usize = 512;
 const NY: usize = 512;
 const NPARTS: usize = 31;
-const NS_PER_PART: usize = 16;
+const NS_PER_PART: usize = 1;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
 
     //let world = make_random_scene();
     //let world = make_dev_scene(&mut camera);
-    let world = make_cornell(&mut camera);
+    //let world = make_cornell(&mut camera);
+    let world = make_colour_checker(&mut camera);
 
     //Initializing temporary buffers for threads...
     let mut buffer_array = vec![vec![0.0; (NX*NY*4 as usize)]; NPARTS];
@@ -107,16 +117,18 @@ fn main() -> std::io::Result<()>{
                     let u = (x as Real + rand::random::<Real>()) / (NX as Real);
                     let v = (y as Real + rand::random::<Real>()) / (NY as Real);
                     let r = camera.get_ray(u, v);
-                    
+
                     //col += color(&r, &world, world[2].as_ref(), 0);
                     #[cfg(feature = "use_sampled_spectrum")]
-                    let gain = 0.01;
+                    let spectrum_factor = 0.01;
 
 
                     #[cfg(not(feature = "use_sampled_spectrum"))]
-                    let gain = 1.0;
+                    let spectrum_factor = 1.0;
                     
-                    let mut spec = gain * color(&r, &world, world[2].as_ref(), 0);
+                    let gain = spectrum_factor * camera.exposure;
+
+                    let mut spec = gain * color(&r, &world, world[0].as_ref(), *ENV_LIGHT, 0);
                     let mut rgb: [Real; 3] = [0.0; 3];
                     spec.to_rgb(&mut rgb);
 

@@ -11,7 +11,8 @@ pub struct Camera {
     pub lens_radius: Real,
     pub u: Vec3,
     pub v: Vec3,
-    pub w: Vec3
+    pub w: Vec3,
+    pub exposure: Real
 }
 
 pub fn random_in_unit_disk() -> Vec3 {
@@ -47,6 +48,7 @@ impl Camera {
             u,
             v,
             w,
+            exposure: 1.0,
         }
     }
 
