@@ -2,20 +2,20 @@ use crate::{
     Vec3,
     Quaternion,
     ray::Ray,
-    hitable::{Hit, Hitable, T_MIN, T_MAX},
+    hitable::{Hit, Hitable},
     materials::Material,
     aabb::AABB,
     ray::random_to_sphere,
-    PI,
     ray::UVW
 };
+use crate::core::{Real, R_MAX, EPS, PI};
 
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Sphere {
     pub center: Vec3,
-    pub radius: f64,
+    pub radius: Real,
     pub material: Option<Arc<Material + Send>>
 }
 
@@ -28,7 +28,7 @@ impl Hitable for Sphere {
         let discriminant = b*b - a*c;
         if discriminant > 0.0 {
             let mut t = (-b - discriminant.sqrt()) / a;
-            if t < T_MAX && t > T_MIN {
+            if t < R_MAX && t > EPS {
                 let p = r.point_at_paramter(t);
                 return Some(Hit{
                     t,
@@ -40,7 +40,7 @@ impl Hitable for Sphere {
                 });
             }
             t= (-b + discriminant.sqrt()) / a;
-            if t < T_MAX && t > T_MIN {
+            if t < R_MAX && t > EPS {
                 let p = r.point_at_paramter(t);
 
                 return Some(Hit{
@@ -56,7 +56,7 @@ impl Hitable for Sphere {
         None
     }
 
-    fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> f64 {
+    fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> Real {
         match self.hit(&Ray::new(ray_origin, v)) {
             Some(rec) => {
                 let cos_theta_max = (1.0 - self.radius * self.radius / (self.center - ray_origin).squared_length()).sqrt();
@@ -81,9 +81,9 @@ impl Hitable for Sphere {
 pub struct Plane {
     pub origin: Vec3,
     pub normal: Vec3, 
-    pub rot_around_normal: f64, // Axis-Angle rotation around normal
-    pub width: f64,
-    pub height: f64,
+    pub rot_around_normal: Real, // Axis-Angle rotation around normal
+    pub width: Real,
+    pub height: Real,
     pub material: Option<Arc<Material + Send>>
 }
 impl Plane {
@@ -130,7 +130,7 @@ impl Hitable for Plane {
         None
     }
 
-    fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> f64 {
+    fn pdf_value(&self, ray_origin: Vec3, v: Vec3) -> Real {
         match self.hit(&Ray::new(ray_origin, v)) {
             Some(rec) => {
                 let area = (self.width*self.height);
@@ -143,8 +143,8 @@ impl Hitable for Plane {
     }
     fn random(&self, ray_origin: Vec3) -> Vec3 {
         let local_random_point = Vec3(
-            (rand::random::<f64>() - 0.5) * self.width,
-            (rand::random::<f64>() - 0.5) * self.height,
+            (rand::random::<Real>() - 0.5) * self.width,
+            (rand::random::<Real>() - 0.5) * self.height,
             0.0
         );
 		

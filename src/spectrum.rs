@@ -2,15 +2,22 @@
 //! representation used, so that changing this detail of the system
 //! only requires changing the **Spectrum** implementation.
 
+#[cfg(feature = "use_sampled_spectrum")]
+pub type Spectrum = SampledSpectrum;
+
+#[cfg(not(feature = "use_sampled_spectrum"))]
+pub type Spectrum = RGBSpectrum;
+
 // std
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
+
 // others
 use num::Zero;
-use crate::core::{Real, clamp_t, find_interval, lerp};
+use crate::core::{EPS, Real, clamp_t, find_interval, lerp};
 
 // see spectrum.h
 
-pub const N_CIE_SAMPLES: u16 = 471_u16;
+pub const N_CIE_SAMPLES: usize = 471; //u16 = 471_u16;
 pub const CIE_X: [Real; N_CIE_SAMPLES as usize] = [
     // CIE X function values
     0.0001299000,
@@ -1883,7 +1890,276 @@ pub fn gamma_correct(v: Real) -> Real {
 }
 
 
+
 /// SampledSpectrum
+
 pub const SAMPLED_LAMBDA_START: Real = 300.0;
 pub const SAMPLED_LAMBDA_END: Real = 700.0;
-pub const N_SPECTRAL_SAMPLES: Real = 60.0;
+pub const N_SPECTRAL_SAMPLES: usize = 60;
+
+#[derive(Copy, Clone)]
+pub struct SampledSpectrum {
+    pub c: [Real; N_SPECTRAL_SAMPLES],
+}
+impl std::fmt::Debug for SampledSpectrum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "SampledSpectrum {{c: [");
+        for v in self.c.iter() {
+		    write!(f, "{:?}, ", v);
+        }
+        write!(f, "] }}")
+    }
+}
+
+impl Default for SampledSpectrum {
+    fn default() -> Self { SampledSpectrum {c: [0.0; N_SPECTRAL_SAMPLES]} }
+}
+
+// When program starts, represent standard CIE matching functions as SampledSpectrum.
+lazy_static! {
+    static ref X: SampledSpectrum = { print!("X:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_X, N_CIE_SAMPLES) };
+    static ref Y: SampledSpectrum = { print!("Y:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_Y, N_CIE_SAMPLES) };
+    static ref Z: SampledSpectrum = { print!("Z:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_Z, N_CIE_SAMPLES) };
+}
+
+impl SampledSpectrum {
+
+    // Convert samples from other interval into interval defined by N_SPECTRAL_SAMPLES,
+    // SAMPLED_LAMBDA_START and SAMPLED_LAMBDA_END.
+    pub fn from_sampled(lambdas: &[Real], v: &[Real], n: usize) -> SampledSpectrum {
+        // sort samples if unordered, use sorted for returned spectrum
+        if !spectrum_samples_sorted(lambdas, v, n as i32) {
+            panic!("TODO: if !spectrum_samples_sorted(...) {...}");
+            // std::vector<Float> slambda(&lambda[0], &lambda[n]);
+            // std::vector<Real> sv(&v[0], &v[n]);
+            // SortSpectrumSamples(&slambda[0], &sv[0], n);
+            // return FromSampled(&slambda[0], &sv[0], n);
+        }
+        
+        let mut tmp = SampledSpectrum{ c: [0.0; N_SPECTRAL_SAMPLES] };
+        for i in 0..N_SPECTRAL_SAMPLES {
+            let wl0 = lerp((i as Real) / (N_SPECTRAL_SAMPLES as Real), SAMPLED_LAMBDA_START, SAMPLED_LAMBDA_END);
+            let wl1 = lerp(((i+1) as Real) / (N_SPECTRAL_SAMPLES as Real), SAMPLED_LAMBDA_START, SAMPLED_LAMBDA_END);
+            tmp.c[i] = SampledSpectrum::average_spectrum_samples(&lambdas, &v, n, wl0, wl1);
+        }
+
+        println!("{:?}", tmp);
+        return tmp;
+    }
+
+    pub fn average_spectrum_samples(lambdas: &[Real], vals: &[Real], n: usize, lambda_start: Real, lambda_end: Real) -> Real {
+        // Handle out of bounds cases
+        if lambda_end <= lambdas[0] { return vals[0]; }
+        if lambda_start >= lambdas[n - 1] { return vals[n - 1]; }
+        if n == 1 { return vals[0]; }
+
+        let mut sum = 0.0;
+
+        // Add out of bounds contributions.
+        if lambda_start < lambdas[0] {
+            sum += vals[0] * (lambdas[0] - lambda_start);
+        }
+        if lambda_end > lambdas[n - 1] {
+            sum += vals[n - 1] * (lambda_end - lambdas[n - 1]);
+        }
+
+        // Go to first relevant wavlength segment.
+        let mut i = 0;
+        loop {
+            if !(lambda_start > lambdas[i+1]) { break };
+            i += 1;
+        }
+
+        // Loop over segments and add contributions
+        let interp = |w: Real, i: usize| -> Real {
+            return lerp((w - lambdas[i]) / (lambdas[i + 1] - lambdas[i]), vals[i], vals[i+1] );
+        };
+
+        loop {
+            if i+1 >= n {break;}
+            if lambda_end < lambdas[i] {break;}
+            
+            let seg_lambda_start    = lambdas[i].max(lambda_start);
+            let seg_lambda_end      = lambdas[i + 1].min(lambda_end);
+            
+            sum += 0.5 
+                * (interp(seg_lambda_start, i) + interp(seg_lambda_end, i))
+                * (seg_lambda_end - seg_lambda_start);
+             
+            i += 1;
+        }
+
+        return sum / (lambda_end - lambda_start);
+    }
+
+    pub fn de_nan(&mut self) {
+        for v in self.c.iter_mut() {
+            if v.is_nan() {*v = 0.0;}
+        }
+    }
+
+    pub fn is_black(&self) -> bool {
+        for i in 0..N_SPECTRAL_SAMPLES {
+            if self.c[i] > EPS {
+                return false;
+            }
+        }
+        true
+    }
+    pub fn clamp(&self, low: Real, high: Real) -> SampledSpectrum {
+        let mut ret: SampledSpectrum = SampledSpectrum::default();
+        for i in 0..N_SPECTRAL_SAMPLES {
+            ret.c[i] = clamp_t(self.c[i], low, high);
+        }
+        assert!(!ret.has_nans());
+        ret
+    }
+    pub fn max_component_value(&self) -> Real {
+        let mut m: Real = self.c[0];
+        for i in 1..N_SPECTRAL_SAMPLES {
+            m = m.max(self.c[i]);
+        }
+        m
+    }
+    pub fn has_nans(&self) -> bool {
+        for i in 0..N_SPECTRAL_SAMPLES {
+            if self.c[i].is_nan() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn to_xyz(&self) -> [Real; 3] {
+        let mut xyz: [Real; 3] = [0.0; 3];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            xyz[0] += X.c[i] * self.c[i];
+            xyz[1] += Y.c[i] * self.c[i];
+            xyz[2] += Z.c[i] * self.c[i];
+        }
+        let scale = (SAMPLED_LAMBDA_END - SAMPLED_LAMBDA_START) / (N_SPECTRAL_SAMPLES as Real);
+        for i in 0..3 { xyz[i] *= scale; }
+        return xyz;
+    }
+
+    pub fn to_rgb(&self, mut rgb: &mut [Real; 3]) {
+        let xyz = self.to_xyz();
+        xyz_to_rgb(&xyz, &mut rgb);
+    }
+    //pub fn to_rgb(&self) -> [Real; 3] {
+    //    let xyz = self.to_xyz();
+
+    //    let mut rgb: [Real; 3] = [0.0; 3];
+    //    xyz_to_rgb(&xyz, &mut rgb);
+    //    return rgb;
+    //}
+}
+
+impl Add for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn add(self, rhs: SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] + rhs.c[i];
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+impl AddAssign for SampledSpectrum {
+    fn add_assign(&mut self, rhs: SampledSpectrum) {
+        // TODO: DCHECK(!s2.HasNaNs());
+        for i in 0..N_SPECTRAL_SAMPLES {
+            self.c[i] += rhs.c[i];
+        }
+    }
+}
+impl Sub for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn sub(self, rhs: SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] - rhs.c[i];
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+
+impl Mul for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn mul(self, rhs: SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] * rhs.c[i];
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+impl Mul<Real> for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn mul(self, rhs: Real) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] * rhs;
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+impl Mul<SampledSpectrum> for Real {
+    type Output = SampledSpectrum;
+    fn mul(self, rhs: SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = rhs.c[i] * self;
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+
+impl MulAssign for SampledSpectrum {
+    fn mul_assign(&mut self, rhs: SampledSpectrum) {
+        // TODO: DCHECK(!HasNaNs());
+        for i in 0..N_SPECTRAL_SAMPLES {
+            self.c[i] *= rhs.c[i];
+        }
+    }
+}
+
+impl Div for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn div(self, rhs: SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] / rhs.c[i];
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+
+impl Div<Real> for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn div(self, rhs: Real) -> SampledSpectrum {
+        assert_ne!(rhs, 0.0 as Real);
+        assert!(!rhs.is_nan(), "rhs is NaN");
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] / rhs;
+        }
+        let ret = SampledSpectrum {
+            c: new_array,
+        };
+        assert!(!ret.has_nans());
+        ret
+    }
+}

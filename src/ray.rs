@@ -1,9 +1,8 @@
 use crate::{
     Vec3, Hitable, Quaternion
 };
+use crate::core::{Real, PI};
 use rand::prelude::*;
-
-use std::f64::consts::PI;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
@@ -16,7 +15,7 @@ impl Ray {
         Ray {origin: origin, direction: direction}
     }
 
-    pub fn point_at_paramter(self, t: f64) -> Vec3 {
+    pub fn point_at_paramter(self, t: Real) -> Vec3 {
         return self.origin + t*self.direction
     }
 
@@ -34,8 +33,8 @@ pub fn random_in_unit_sphere() -> Vec3 {
 }
 
 pub fn random_cosine_direction() -> Vec3 {
-    let r1 = rand::random::<f64>();
-    let r2 = rand::random::<f64>();
+    let r1 = rand::random::<Real>();
+    let r2 = rand::random::<Real>();
     let z = (1.0-r2).sqrt();
     let phi = 2.0*PI*r1;
     let x = phi.cos() * 2.0 * (r2.sqrt());
@@ -43,9 +42,9 @@ pub fn random_cosine_direction() -> Vec3 {
     Vec3(x, y, z)
 }
 
-pub fn random_to_sphere(radius: f64, distance_squared: f64) -> Vec3 {
-    let r1 = rand::random::<f64>();
-    let r2 = rand::random::<f64>();
+pub fn random_to_sphere(radius: Real, distance_squared: Real) -> Vec3 {
+    let r1 = rand::random::<Real>();
+    let r2 = rand::random::<Real>();
     //let z = 1.0 + r2*((1.0 - radius*radius/(distance_squared + 1e-5)).sqrt() - 1.0);
     let z = 1.0 + r2*((1.0 - radius*radius/(distance_squared)).sqrt() - 1.0);
     let phi = 2.0*PI*r1;
@@ -82,7 +81,7 @@ pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
 }
 
 #[inline]
-pub fn refract(v: Vec3, n: Vec3, ni_over_nt: f64) -> Option<Vec3> {
+pub fn refract(v: Vec3, n: Vec3, ni_over_nt: Real) -> Option<Vec3> {
     let uv = v.make_unit_vector();
     let dt = Vec3::dot(uv, n);
     let discriminant = 1.0 - ni_over_nt*ni_over_nt*(1.0 - dt*dt);
@@ -94,14 +93,14 @@ pub fn refract(v: Vec3, n: Vec3, ni_over_nt: f64) -> Option<Vec3> {
 }
 
 #[inline]
-pub fn schlick(cosine: f64, ref_idx: f64) -> f64 {
+pub fn schlick(cosine: Real, ref_idx: Real) -> Real {
     let mut r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
     r0 = r0*r0;
     return r0 + (1.0 - r0) * (1.0 - cosine).powi(5);
 }
 
 pub trait PDF {
-    fn value(&self, direction: Vec3) -> f64;
+    fn value(&self, direction: Vec3) -> Real;
     fn generate(&self) -> Vec3;
 }
 
@@ -110,7 +109,7 @@ impl CosinePDF{
     pub fn new(w: Vec3) -> CosinePDF { CosinePDF{ to_world_rot: Quaternion::rot_from_vecs(Vec3(0.0, 1.0, 0.0), w), uvw: UVW::onb_from_w(w) } }
 }
 impl PDF for CosinePDF {
-    fn value(&self, direction: Vec3) -> f64 {
+    fn value(&self, direction: Vec3) -> Real {
         let cosine = (direction.make_unit_vector()).dot(self.uvw.w);
         if cosine > 0.0 {
             return cosine / PI;
@@ -130,7 +129,7 @@ impl <'a> HitablePDF<'a> {
     pub fn new( hitable: &'a dyn Hitable, origin: Vec3) -> HitablePDF { HitablePDF{ origin, hitable } }
 }
 impl <'a> PDF for HitablePDF<'a> {
-    fn value(&self, direction: Vec3) -> f64 {
+    fn value(&self, direction: Vec3) -> Real {
         return self.hitable.pdf_value(self.origin, direction);
     }
 
@@ -148,7 +147,7 @@ impl <'a> MixturePDF<'a> {
     }
 }
 impl <'a> PDF for MixturePDF<'a> {
-    fn value(&self, direction: Vec3) -> f64 {
+    fn value(&self, direction: Vec3) -> Real {
         return 0.5*self.pdfs[0].value(direction) + 0.5*self.pdfs[1].value(direction);
     }
 

@@ -2,6 +2,9 @@ use std::sync::Arc;
 use rand::prelude::*;
 use rayon::prelude::*;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod cgmath;
 mod ray;
 mod materials;
@@ -14,11 +17,12 @@ mod spectrum;
 mod utils;
 
 mod core {
-    pub type Real = f64;
+    pub type Real = f32;
     pub const EPS: Real = 1e-5;
-    pub const R_MAX: Real = std::f64::MAX;
+    pub const R_MAX: Real = std::f32::MAX;
+    pub const PI: Real = std::f32::consts::PI;
     pub use crate::cgmath::{Vec3, Quaternion};
-    pub use crate::spectrum::{RGBSpectrum};
+    pub use crate::spectrum::{Spectrum, SampledSpectrum, RGBSpectrum};
     pub use crate::utils::*;
 }
 use cgmath::{Vec3, Quaternion};
@@ -31,7 +35,6 @@ use scenes::*;
 use spectrum::*; //{RGBSpectrum, Spectrum, SampledSpectrum};
 use crate::core::*;
 
-use std::f64::consts::PI;
 const light_shape: Plane = Plane {
     origin: Vec3(278.0, 554.0, 279.5),
     normal: Vec3(0.0, -1.0, 0.0),
@@ -41,7 +44,7 @@ const light_shape: Plane = Plane {
     material: None
 };
 
-fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> RGBSpectrum {
+fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> Spectrum {
     match world.hit(r) {
         Some(rec) => {
             let emitted;
@@ -65,22 +68,24 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, depth: usize) -> RGBSpec
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
                                 let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, depth+1) / (pdf_val + 1e-5);
+
+
                                 return val.clone();
                             }
                         }
                     }
                 }, 
-                None => {return spectrum::RGBSpectrum::new(0.0 as Real);}
+                None => {return spectrum::Spectrum::default();}
             }
             return emitted.clone()
         }, 
-        None => {return spectrum::RGBSpectrum::new(0.0 as Real);}
+        None => {return spectrum::Spectrum::default();}
     }
 }
 
-const NX: usize = 250;
-const NY: usize = 250;
-const NPARTS: usize = 32;
+const NX: usize = 512;
+const NY: usize = 512;
+const NPARTS: usize = 31;
 const NS_PER_PART: usize = 16;
 
 fn main() -> std::io::Result<()>{
@@ -99,23 +104,26 @@ fn main() -> std::io::Result<()>{
             for x in 0..NX {
                 let mut col = Vec3::ZEROS;
                 for _s in 0..NS_PER_PART {
-                    let u = (x as f64 + rand::random::<f64>()) / (NX as f64);
-                    let v = (y as f64 + rand::random::<f64>()) / (NY as f64);
+                    let u = (x as Real + rand::random::<Real>()) / (NX as Real);
+                    let v = (y as Real + rand::random::<Real>()) / (NY as Real);
                     let r = camera.get_ray(u, v);
                     
                     //col += color(&r, &world, world[2].as_ref(), 0);
-                    //let gain = 0.1;
-                    //let val = gain * integrate_spectrum_cie(&color(&r, &world, world[0].as_ref(), 0));
-                    
-                    let rgb = color(&r, &world, world[2].as_ref(), 0);
-                    //let mut rgb: [Real; 3] = [0.0; 3];
-                    //spectrum::xyz_to_rgb(&xyz.c, &mut rgb);
+                    #[cfg(feature = "use_sampled_spectrum")]
+                    let gain = 0.01;
 
-                    let val = Vec3::new(rgb[0], rgb[1], rgb[2]);
+
+                    #[cfg(not(feature = "use_sampled_spectrum"))]
+                    let gain = 1.0;
+                    
+                    let mut spec = gain * color(&r, &world, world[2].as_ref(), 0);
+                    let mut rgb: [Real; 3] = [0.0; 3];
+                    spec.to_rgb(&mut rgb);
+
                     let val = Vec3::new(rgb[0], rgb[1], rgb[2]);
                     col += val;
                 }
-                col /= NS_PER_PART as f64;
+                col /= NS_PER_PART as Real;
                 buffer[(((NY-1-y)*NX + x)*4 + 0) as usize] = col.r();
                 buffer[(((NY-1-y)*NX + x)*4 + 1) as usize] = col.g();
                 buffer[(((NY-1-y)*NX + x)*4 + 2) as usize] = col.b();
@@ -125,11 +133,11 @@ fn main() -> std::io::Result<()>{
     });
 
     println!("Averaging...");
-    let mut final_float_buffer = vec![0.0 as f64; (NX*NY*4) as usize];
+    let mut final_float_buffer = vec![0.0 as Real; (NX*NY*4) as usize];
     let mut final_buffer = vec![0 as u8; (NX*NY*4) as usize];
     for buffer in buffer_array.iter() {
         for i in 0..buffer.len() {
-            let mut pixel_value = final_float_buffer[i] + buffer[i] / (NPARTS as f64);
+            let mut pixel_value = final_float_buffer[i] + buffer[i] / (NPARTS as Real);
             //if pixel_value > 1.0 { pixel_value = 1.0; }
             final_float_buffer[i] = pixel_value;
         }
@@ -148,7 +156,7 @@ fn main() -> std::io::Result<()>{
     //}
     let iter = final_buffer.iter_mut().zip(final_float_buffer.iter());
     for (final_pixel, float_pixel) in iter {
-        let gamma_corrected = spectrum::gamma_correct(*float_pixel).min(1.0);
+        let gamma_corrected = spectrum::gamma_correct((*float_pixel)).min(1.0).max(0.0);
         *final_pixel = (255.99*gamma_corrected) as u8;
     }
 

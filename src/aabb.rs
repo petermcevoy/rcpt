@@ -2,6 +2,7 @@
 
 use std::cmp::{min, max};
 use crate::Vec3;
+use crate::core::{Real, R_MAX};
 use crate::ray::Ray;
 use crate::hitable::{Hitable, Hit};
 use rand::prelude::*;
@@ -25,7 +26,7 @@ impl AABB {
                 std::mem::swap(&mut t0, &mut t1);
             }
             let tmin = t0.max(0.0001);
-            let tmax = t1.min(std::f64::MAX);
+            let tmax = t1.min(R_MAX);
             if tmax <= tmin { return false; }
         }
         return true;

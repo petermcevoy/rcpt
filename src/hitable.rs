@@ -3,23 +3,21 @@ use crate::ray::Ray;
 use crate::materials::Material;
 use crate::aabb::AABB;
 use std::sync::Arc;
-
-pub const T_MIN: f64 = 0.0001;
-pub const T_MAX: f64 = std::f64::MAX;
+use crate::core::{Real, R_MAX, EPS};
 
 #[derive(Clone)]
 pub struct Hit {
-    pub t: f64,
+    pub t: Real,
     pub p: Vec3,
-    pub u: f64,
-    pub v: f64,
+    pub u: Real,
+    pub v: Real,
     pub normal: Vec3,
     pub material: Option<Arc<Material + Send>>
 }
 
 pub trait Hitable: Sync + Send {
     fn hit(&self, r: &Ray) -> Option<Hit>;
-    fn pdf_value(&self, origin: Vec3, v: Vec3) -> f64 { return 0.0; }
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> Real { return 0.0; }
     fn random(&self, origin: Vec3) -> Vec3 { return Vec3(1.0, 0.0, 0.0); }
 }
 
@@ -27,7 +25,7 @@ pub type HitList = Vec<Box<Hitable>>;
 impl Hitable for Vec<Box<Hitable>> {
     fn hit(&self, r: &Ray) -> Option<Hit> {
         let mut rec: Option<Hit> = None;
-        let mut closest_so_far = std::f64::MAX;
+        let mut closest_so_far = R_MAX;
         for item in self.iter() {
             match item.hit(&r) {
                 Some(temp_rec) => {
