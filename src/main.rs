@@ -45,7 +45,7 @@ const light_shape: Plane = Plane {
 };
 
 lazy_static! {
-    static ref ENV_LIGHT: Option<&'static Spectrum> = Some(&spectrum::ILLUMINATION_D65); 
+    static ref ENV_LIGHT: Option<&'static Spectrum> = None;// Some(&spectrum::ILLUMINATION_D65); 
 }
 
 fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spectrum>, depth: usize) -> Spectrum {
@@ -61,10 +61,10 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
                                 return srec.attenuation * color(&specular_ray, world, light, env_light, depth+1);
                                 //return color(&specular_ray, world, light, depth+1);
                             } else {
-                                //let hitable_pdf = HitablePDF::new(light, rec.p);
-                                //let mat_pdf = srec.pdf.unwrap();
-                                //let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
-                                let p = CosinePDF::new(rec.normal);
+                                let hitable_pdf = HitablePDF::new(light, rec.p);
+                                let mat_pdf = srec.pdf.unwrap();
+                                let p = MixturePDF::new(&hitable_pdf, mat_pdf.as_ref());
+                                //let p = CosinePDF::new(rec.normal);
 
                                 let scattered = Ray{origin: rec.p, direction: p.generate()};
                                 let pdf_val = p.value(scattered.direction);
@@ -92,18 +92,18 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
     }
 }
 
-const NX: usize = 512;
-const NY: usize = 512;
+const NX: usize = 250;
+const NY: usize = 250;
 const NPARTS: usize = 31;
-const NS_PER_PART: usize = 1;
+const NS_PER_PART: usize = 2;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
 
     //let world = make_random_scene();
     //let world = make_dev_scene(&mut camera);
-    //let world = make_cornell(&mut camera);
-    let world = make_colour_checker(&mut camera);
+    let world = make_cornell(&mut camera);
+    //let world = make_colour_checker(&mut camera);
 
     //Initializing temporary buffers for threads...
     let mut buffer_array = vec![vec![0.0; (NX*NY*4 as usize)]; NPARTS];
@@ -128,7 +128,7 @@ fn main() -> std::io::Result<()>{
                     
                     let gain = spectrum_factor * camera.exposure;
 
-                    let mut spec = gain * color(&r, &world, world[0].as_ref(), *ENV_LIGHT, 0);
+                    let mut spec = gain * color(&r, &world, world[2].as_ref(), *ENV_LIGHT, 0);
                     let mut rgb: [Real; 3] = [0.0; 3];
                     spec.to_rgb(&mut rgb);
 

@@ -121,7 +121,7 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
         let aperture = 0.0;
         let focus_dist = 10.0;//(lookfrom-lookat).length();
         *camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
-        camera.exposure = 0.01;
+        camera.exposure = 1.0;
     }
     
     // Make spectrums
