@@ -45,7 +45,7 @@ const light_shape: Plane = Plane {
 };
 
 lazy_static! {
-    static ref ENV_LIGHT: Option<&'static Spectrum> = None;// Some(&spectrum::ILLUMINATION_D65); 
+    static ref ENV_LIGHT: Option<&'static Spectrum> = None; //Some(&spectrum::ILLUMINATION_HALOGEN); 
 }
 
 fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spectrum>, depth: usize) -> Spectrum {
@@ -55,7 +55,7 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
             match rec.material.as_ref() {
                 Some(mat) => {
                     emitted = mat.emitted(&r, &rec, rec.u, rec.v, rec.p);
-                    if depth < 20 {
+                    if depth < 10 {
                         if let Some(srec) = mat.scatter(&r, &rec) {
                             if let Some(specular_ray) = srec.specular_ray {
                                 return srec.attenuation * color(&specular_ray, world, light, env_light, depth+1);
@@ -96,7 +96,7 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
 
 const NX: usize = 512;
 const NY: usize = 512;
-const NPARTS: usize = 32;
+const NPARTS: usize = 31;
 const NS_PER_PART: usize = 6;
 
 fn main() -> std::io::Result<()>{
