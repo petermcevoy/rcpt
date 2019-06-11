@@ -157,6 +157,52 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
     let sampled_zero = spectrum::Spectrum::default();
 
 
+    // Make rerad material.
+    let yellow_rerad = materials::LambertianReRad {
+        emit: sampled_zero,
+        rerad_list: vec![
+            //materials::GaussRecord {lambda_in: 600.0, lambda_out: 600.0, amplitude_out: 480.0, sigma_in: 20.0, sigma_out: 20.0},
+            //materials::GaussRecord {lambda_in: 500.0, lambda_out: 600.0, amplitude_out: 800.0, sigma_in: 12.0, sigma_out: 12.0},
+            //materials::GaussRecord {lambda_in: 450.0, lambda_out: 650.0, amplitude_out: 0.05, sigma_in: 10.0, sigma_out: 10.0},
+            materials::GaussRecord {lambda_in: 600.0, lambda_out: 600.0, amplitude_out: 0.2, sigma_in: 20.0, sigma_out: 20.0},
+            materials::GaussRecord {lambda_in: 450.0, lambda_out: 600.0, amplitude_out: 1.0/3.0, sigma_in: 12.0, sigma_out: 12.0},
+            materials::GaussRecord {lambda_in: 500.0, lambda_out: 600.0, amplitude_out: 1.0/3.0, sigma_in: 12.0, sigma_out: 12.0},
+            materials::GaussRecord {lambda_in: 550.0, lambda_out: 600.0, amplitude_out: 1.0/3.0, sigma_in: 12.0, sigma_out: 12.0},
+        ]
+    };
+    let s = 0.5;
+    let pink_rerad = materials::LambertianReRad {
+        emit: sampled_zero,
+        rerad_list: vec![
+            materials::GaussRecord {lambda_in: 350.0, lambda_out: 350.0, amplitude_out: s*0.17, sigma_in: 30.0, sigma_out: 30.0},
+            materials::GaussRecord {lambda_in: 350.0, lambda_out: 650.0, amplitude_out: s*0.28, sigma_in: 30.0, sigma_out: 30.0},
+
+            materials::GaussRecord {lambda_in: 400.0, lambda_out: 400.0, amplitude_out: s*0.52, sigma_in: 30.0, sigma_out: 30.0},
+            materials::GaussRecord {lambda_in: 400.0, lambda_out: 650.0, amplitude_out: s*0.36, sigma_in: 30.0, sigma_out: 30.0},
+            
+            materials::GaussRecord {lambda_in: 430.0, lambda_out: 430.0, amplitude_out: s*0.79, sigma_in: 30.0, sigma_out: 30.0},
+            materials::GaussRecord {lambda_in: 430.0, lambda_out: 650.0, amplitude_out: s*0.55, sigma_in: 30.0, sigma_out: 30.0},
+            
+            materials::GaussRecord {lambda_in: 410.0, lambda_out: 410.0, amplitude_out: s*0.63, sigma_in: 15.0, sigma_out: 15.0},
+            materials::GaussRecord {lambda_in: 410.0, lambda_out: 650.0, amplitude_out: s*0.18, sigma_in: 15.0, sigma_out: 30.0},
+            
+            materials::GaussRecord {lambda_in: 460.0, lambda_out: 460.0, amplitude_out: s*0.63, sigma_in: 17.0, sigma_out: 17.0},
+            materials::GaussRecord {lambda_in: 460.0, lambda_out: 650.0, amplitude_out: s*0.30, sigma_in: 17.0, sigma_out: 30.0},
+
+            materials::GaussRecord {lambda_in: 500.0, lambda_out: 500.0, amplitude_out: s*0.14, sigma_in: 18.0, sigma_out: 18.0},
+            materials::GaussRecord {lambda_in: 500.0, lambda_out: 650.0, amplitude_out: s*0.29, sigma_in: 18.0, sigma_out: 30.0},
+            
+            materials::GaussRecord {lambda_in: 550.0, lambda_out: 550.0, amplitude_out: s*0.20, sigma_in: 18.0, sigma_out: 18.0},
+            materials::GaussRecord {lambda_in: 550.0, lambda_out: 650.0, amplitude_out: s*0.80, sigma_in: 18.0, sigma_out: 30.0},
+            
+            materials::GaussRecord {lambda_in: 600.0, lambda_out: 600.0, amplitude_out: s*0.50, sigma_in: 11.0, sigma_out: 11.0},
+            materials::GaussRecord {lambda_in: 600.0, lambda_out: 650.0, amplitude_out: s*0.50, sigma_in: 11.0, sigma_out: 10.0},
+            
+            materials::GaussRecord {lambda_in: 650.0, lambda_out: 650.0, amplitude_out: s*0.79, sigma_in: 15.0, sigma_out: 15.0},
+        ]
+    };
+
+
     let scene: Vec<Box<Hitable>> = vec![
         Box::new( //Red
             Plane {
@@ -219,24 +265,26 @@ pub fn make_cornell(camera: &mut Camera) -> Vec<Box<Hitable>> {
                 material: Some(Arc::new( materials::Lambertian{ emit: sampled_zero, albedo: sampled_refl_white } ) )
             }  
         ),
-        Box::new( //Small box
+        /*Box::new( //Small box
             Cuboid::new()
                 .origin(Vec3(185.0, 165.0/2.0, 169.0))
                 .size(Vec3(165.0, 165.0, 165.0))
                 .rot(Quaternion::from_eulerangles(Vec3(0.0, -18.0*PI/180.0, 0.0)))
                 //.material( Arc::new( materials::Lambertian{ emit: rgb_zero, albedo: rgb_refl_white } ) )
-                .material( Arc::new( materials::Lambertian{ emit: sampled_zero, albedo: sampled_refl_white } ) )
                 //.material( Arc::new( materials::Metal{ albedo: Vec3(0.73, 0.73, 0.73), fuzz: 0.0 } ) )
+                //material( Arc::new( materials::Lambertian{ emit: sampled_zero, albedo: sampled_refl_white } ) )
+                .material( Arc::new( pink_rerad ) )
                 .build()
+        ),*/
+        Box::new( //Small sphere
+            Sphere{
+                center: Vec3(200.0, 165.0/2.0, 169.0),
+                radius: 165.0/2.0,
+                //material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } ) )
+                //material: Some(Arc::new( materials::Lambertian{ emit: Vec3(0.0, 0.0, 0.0), albedo: Vec3::ZEROS } ) )
+                material: Some(Arc::new( pink_rerad ))
+            }
         ),
-        //Box::new( //Small sphere
-        //    Sphere{
-        //        center: Vec3(200.0, 165.0/2.0, 169.0),
-        //        radius: 165.0/2.0,
-        //        material: Some(Arc::new( materials::Lambertian{ emit: 2.0*Vec3::ONES, albedo: Vec3::ZEROS } ) )
-        //        //material: Some(Arc::new( materials::Lambertian{ emit: Vec3(0.0, 0.0, 0.0), albedo: Vec3::ZEROS } ) )
-        //    }
-        //),
         Box::new( //Tall box
             Cuboid::new()
                 .origin(Vec3(368.0, 330.0/2.0, 351.0))

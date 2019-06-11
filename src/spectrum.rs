@@ -1692,6 +1692,19 @@ impl Mul for RGBSpectrum {
     }
 }
 
+impl Mul<&RGBSpectrum> for RGBSpectrum {
+    type Output = RGBSpectrum;
+    fn mul(self, rhs: &RGBSpectrum) -> RGBSpectrum {
+        RGBSpectrum {
+            c: [
+                self.c[0] * rhs.c[0],
+                self.c[1] * rhs.c[1],
+                self.c[2] * rhs.c[2],
+            ],
+        }
+    }
+}
+
 impl Mul<Real> for RGBSpectrum {
     type Output = RGBSpectrum;
     fn mul(self, rhs: Real) -> RGBSpectrum {
@@ -1896,6 +1909,24 @@ pub fn gamma_correct(v: Real) -> Real {
 pub const SAMPLED_LAMBDA_START: Real = 300.0;
 pub const SAMPLED_LAMBDA_END: Real = 700.0;
 pub const N_SPECTRAL_SAMPLES: usize = 60;
+lazy_static! {
+    pub static ref SAMPLED_LAMBDA: [Real; N_SPECTRAL_SAMPLES] = {
+        let mut tmp: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        let step = (SAMPLED_LAMBDA_END - SAMPLED_LAMBDA_START) / N_SPECTRAL_SAMPLES as Real;
+        for i in 0..N_SPECTRAL_SAMPLES {
+            tmp[i] = SAMPLED_LAMBDA_START + (i as Real)*step;
+        }
+        tmp
+    };
+}
+
+/*
+lazy_static! {
+    static ref SAMPLED_LAMBDAS: SampledSpectrum = { print!("X:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_X, N_CIE_SAMPLES) };
+    static ref Y: SampledSpectrum = { print!("Y:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_Y, N_CIE_SAMPLES) };
+    static ref Z: SampledSpectrum = { print!("Z:"); SampledSpectrum::from_sampled(&CIE_LAMBDA, &CIE_Z, N_CIE_SAMPLES) };
+}
+*/
 
 #[derive(Copy, Clone)]
 pub struct SampledSpectrum {
@@ -2087,6 +2118,19 @@ impl Mul for SampledSpectrum {
         }
     }
 }
+impl Mul<&SampledSpectrum> for SampledSpectrum {
+    type Output = SampledSpectrum;
+    fn mul(self, rhs: &SampledSpectrum) -> SampledSpectrum {
+        let mut new_array: [Real; N_SPECTRAL_SAMPLES] = [0.0; N_SPECTRAL_SAMPLES];
+        for i in 0..N_SPECTRAL_SAMPLES {
+            new_array[i] = self.c[i] * rhs.c[i];
+        }
+        SampledSpectrum {
+            c: new_array,
+        }
+    }
+}
+
 impl Mul<Real> for SampledSpectrum {
     type Output = SampledSpectrum;
     fn mul(self, rhs: Real) -> SampledSpectrum {

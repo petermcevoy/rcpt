@@ -55,7 +55,7 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
             match rec.material.as_ref() {
                 Some(mat) => {
                     emitted = mat.emitted(&r, &rec, rec.u, rec.v, rec.p);
-                    if depth < 50 {
+                    if depth < 20 {
                         if let Some(srec) = mat.scatter(&r, &rec) {
                             if let Some(specular_ray) = srec.specular_ray {
                                 return srec.attenuation * color(&specular_ray, world, light, env_light, depth+1);
@@ -71,7 +71,9 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
                                 if pdf_val == 0.0 { return emitted.clone(); }
                                 let scattering_pdf_val = mat.scattering_pdf(&r, &rec, &scattered);
 
-                                let val = emitted + srec.attenuation*scattering_pdf_val*color(&scattered, world, light, env_light, depth+1) / (pdf_val + 1e-5);
+                                let spectrum_in = scattering_pdf_val*color(&scattered, world, light, env_light, depth+1) / (pdf_val + 1e-5);
+
+                                let val = emitted + mat.apply_diffuse(&spectrum_in);
 
 
                                 return val.clone();
@@ -92,10 +94,10 @@ fn color(r: &Ray, world: &Hitable, light: &dyn Hitable, env_light: Option<&Spect
     }
 }
 
-const NX: usize = 250;
-const NY: usize = 250;
-const NPARTS: usize = 31;
-const NS_PER_PART: usize = 2;
+const NX: usize = 512;
+const NY: usize = 512;
+const NPARTS: usize = 32;
+const NS_PER_PART: usize = 6;
 
 fn main() -> std::io::Result<()>{
     let mut camera = Camera::none();
