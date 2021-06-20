@@ -12,9 +12,9 @@ pub fn make_colour_checker(camera: &mut Camera) -> Vec<Box<Hitable>> {
         let aperture = 0.0;
         let focus_dist = 10.0;//(lookfrom-lookat).length();
         *camera = Camera::new(lookfrom, lookat, up, fov, aspect, aperture, focus_dist);
-        //camera.exposure = 0.01;
+        camera.exposure = 0.01;
         //camera.exposure = 0.032; // for halogen
-        camera.exposure = 0.001; // underexpose for fluorescent.
+        //camera.exposure = 0.001; // underexpose for fluorescent.
     }
 
 

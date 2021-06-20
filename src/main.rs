@@ -109,7 +109,7 @@ fn main() -> std::io::Result<()>{
 
     //Initializing temporary buffers for threads...
     let mut buffer_array = vec![vec![0.0; (NX*NY*4 as usize)]; NPARTS];
-    
+
     // Dispatch threads.
     buffer_array.par_iter_mut().for_each(|buffer| {
         for y in 0..NY {
@@ -127,7 +127,7 @@ fn main() -> std::io::Result<()>{
 
                     #[cfg(not(feature = "use_sampled_spectrum"))]
                     let spectrum_factor = 1.0;
-                    
+
                     let gain = spectrum_factor * camera.exposure;
 
                     let mut spec = gain * color(&r, &world, world[2].as_ref(), *ENV_LIGHT, 0);
