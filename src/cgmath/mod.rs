@@ -1,5 +1,5 @@
-mod vec;
 mod quaternion;
+mod vec;
 
-pub use vec::Vec3;
 pub use quaternion::Quaternion;
+pub use vec::Vec3;

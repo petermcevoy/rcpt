@@ -1,9 +1,9 @@
-use crate::Vec3;
-use crate::ray::Ray;
 use crate::materials::Material;
-use crate::aabb::AABB;
+use crate::ray::Ray;
+use crate::Vec3;
+// use crate::aabb::AABB;
+use crate::core::{Real, R_MAX};
 use std::sync::Arc;
-use crate::core::{Real, R_MAX, EPS};
 
 #[derive(Clone)]
 pub struct Hit {
@@ -12,17 +12,21 @@ pub struct Hit {
     pub u: Real,
     pub v: Real,
     pub normal: Vec3,
-    pub material: Option<Arc<Material + Send>>
+    pub material: Option<Arc<dyn Material + Send>>,
 }
 
 pub trait Hitable: Sync + Send {
     fn hit(&self, r: &Ray) -> Option<Hit>;
-    fn pdf_value(&self, origin: Vec3, v: Vec3) -> Real { return 0.0; }
-    fn random(&self, origin: Vec3) -> Vec3 { return Vec3(1.0, 0.0, 0.0); }
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> Real {
+        return 0.0;
+    }
+    fn random(&self, origin: Vec3) -> Vec3 {
+        return Vec3(1.0, 0.0, 0.0);
+    }
 }
 
-pub type HitList = Vec<Box<Hitable>>;
-impl Hitable for Vec<Box<Hitable>> {
+pub type HitList = Vec<Box<dyn Hitable>>;
+impl Hitable for Vec<Box<dyn Hitable>> {
     fn hit(&self, r: &Ray) -> Option<Hit> {
         let mut rec: Option<Hit> = None;
         let mut closest_so_far = R_MAX;
@@ -33,8 +37,8 @@ impl Hitable for Vec<Box<Hitable>> {
                         closest_so_far = temp_rec.t;
                         rec = Some(temp_rec);
                     }
-                },
-                None => {},
+                }
+                None => {}
             }
         }
         rec

@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, Mul, Sub};
 
 /// Clamp the given value *val* to lie between the values *low* and *high*.
 pub fn clamp_t<T>(val: T, low: T, high: T) -> T
@@ -49,4 +49,3 @@ where
     let one: S = num::One::one();
     a * (one - t) + b * t
 }
-
